@@ -61,6 +61,9 @@ register_shutdown_function( function()
 		Database::close();
 } );
 
+//read config file
+require( "config.php" );
+
 //get uri and build queue of it
 //default set to home
 $uri = ( isset( $_GET['uri'] ) ) ? $_GET['uri'] : "home";
