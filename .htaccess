@@ -1,0 +1,14 @@
+RewriteEngine On
+
+#if uri matches a file or directory, do nothing and stop processing rules
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+#rewrite uri, special case when browsing in my userdir
+#(due to base url expansion issues related to ~user format)
+RewriteCond %{REQUEST_URI} ^/~FredKilbourn/
+RewriteRule ^(.*)$ /~FredKilbourn/public/phenomena/?uri=$1 [QSA,L]
+
+#rewrite uri
+RewriteRule ^(.*)$ ?uri=$1 [QSA]
