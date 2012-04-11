@@ -6,7 +6,7 @@
 
 # Ignore config file
 config.php
-/lib/css/jquery/*
-/lib/js/jquery/*
-/lib/php/jaxl/*
-/support/*
+/lib/css/jquery/**/*
+/lib/js/jquery/**/*
+/lib/php/jaxl/**/*
+/support/**/*
