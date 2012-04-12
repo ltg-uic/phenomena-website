@@ -1,6 +1,9 @@
 <?php
 namespace PhenLib;
 
+//read config file
+require_once( "config.php" );
+
 #default exception handler
 \set_exception_handler( function( $e )
 {
@@ -61,8 +64,9 @@ register_shutdown_function( function()
 		Database::close();
 } );
 
-//read config file
-require( "config.php" );
+\date_default_timezone_set( $GLOBALS['timezone'] );
+
+require_once( "lib/php/jaxl/core/jaxl.class.php" );
 
 //get uri and build queue of it
 //default set to home
@@ -79,4 +83,5 @@ Template::linkcss( "lib/css/phenomena.css" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
 Template::display();
+require( "lib/php/xmppRegisterUser.php" );
 ?>
