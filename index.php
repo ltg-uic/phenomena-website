@@ -83,15 +83,5 @@ Template::linkcss( "lib/css/phenomena.css" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
 Template::display();
-echo "<pre>";
-echo "REGISTER:";
-var_export( (new XMPPUserManager())->register("test","test") );
-echo "\n";
-echo "REGISTER:";
-var_export( (new XMPPUserManager())->register("test","test") );
-echo "\n";
-echo "REMOVE:";
-var_export( (new XMPPUserManager())->remove("test","test") );
-echo "\n";
-echo "</pre>";
+XMPPUserManager::runTests();
 ?>

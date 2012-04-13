@@ -1,6 +1,8 @@
 <?php
 namespace PhenLib;
 
+//TODO - password minimum complexity
+
 class XMPPUserMAnager
 {
 	private $jaxl;
@@ -8,7 +10,9 @@ class XMPPUserMAnager
 	private $pass;
 	private $stop;
 	private $noException;
+	private $errors;
 
+	//setup xmpp management connection
 	public function __construct()
 	{
 		//init jaxl
@@ -16,25 +20,28 @@ class XMPPUserMAnager
 			'user'=>$GLOBALS['xmppUser'],
 			'pass'=>$GLOBALS['xmppPass'],
 			'domain'=>$GLOBALS['xmppDomain'],
-			'logLevel'=>9999990,
 			'logPath'=>$GLOBALS['xmppLogPath'],
 			'pidPath'=>$GLOBALS['xmppPidPath'],
 //TODO - should be cgi (i think), but buggy - patched jaxl to not exit after cli for now
 			'mode'=>'cli'
+//			,'logLevel'=>100000
 			) );
 
-		//require XEP-0077: In-Band Registration
-		$this->jaxl->requires('JAXL0077');
-
+		//init class vars
 		$this->user = NULL;
 		$this->pass = NULL;
 		$this->stop = FALSE;
 		$this->noException = FALSE;
+		$this->errors = array();
+
+		//require XEP-0077: In-Band Registration
+		$this->jaxl->requires('JAXL0077');
 	}
 	
-
-	public function register( $user, $pass )
+	//XEP-0077 register username + password
+	public function registerEntity( $user, $pass )
 	{
+		//init vars
 		$this->user = $user;
 		$this->pass = $pass;
 		$registered = FALSE;
@@ -44,18 +51,26 @@ class XMPPUserMAnager
 	        {
 			//state: connected
 			$this->jaxl_post_connect( $payload, $jaxl );
-	                $jaxl->JAXL0077( 'getRegistrationForm', '', 'climax-linux.datacenter.fredk.com', function( $payload, $jaxl ) use ( & $registered )
+	                $jaxl->JAXL0077( 'getRegistrationForm', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $registered )
 			{ 
 				//state: form requested
-				if( $this->error( $payload ) )
+				if( $payload['type'] === "error" )
 				{
-					echo "getreg - quit";
+					$this->errors[] = "Error getting registration form:\n\$payload = " . var_export( $payload, true );
+					$this->stop();
 					return;
 				}
+
 				//at this point, $payload is the registration form, if we want it
-				$jaxl->JAXL0077( 'register', '', 'climax-linux.datacenter.fredk.com', function( $payload, $jaxl ) use ( & $registered )
+				$jaxl->JAXL0077( 'register', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $registered )
 					{
 						//state: registration submitted
+						if( $payload['type'] === "error" )
+						{
+							$this->errors[] = "Error registering:\n\$payload = " . var_export( $payload, true );
+							$this->stop();
+							return;
+						}
 						if( $payload['type'] === "result" )
 							$registered = true;
 						$this->stop();
@@ -71,7 +86,8 @@ class XMPPUserMAnager
 		return $registered;
 	}
 
-	public function remove( $user, $pass )
+	//XEP-0077 cancel register username + password
+	public function cancelRegisterEntity( $user, $pass )
 	{
 		//login as user to remove
 		$this->jaxl->user = $user;
@@ -81,14 +97,20 @@ class XMPPUserMAnager
 		//register callbacks
 		$this->jaxl->addPlugin('jaxl_post_connect', function( $p, $j ){ $this->jaxl_post_connect( $p , $j ); } );
 		$this->jaxl->addPlugin('jaxl_get_auth_mech', function( $m, $j ){ $this->jaxl_get_auth_mech( $m , $j ); } );
+//TODO - in cli mode this wont get called - figure out cgi mode
 		$this->jaxl->addPlugin('jaxl_post_auth_failure', function( $p, $j ){ $this->jaxl_post_auth_failure( $p , $j ); } );
 		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $removed )
                 {
 			//state: authenticated
-			$this->jaxl_post_auth( $payload, $jaxl );
 			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $removed )
 			{
 				//state: remove registration submitted
+				if( $payload['type'] === "error" )
+				{
+					$this->errors[] = "Error cancelling registration:\n\$payload = " . var_export( $payload, true );
+					$this->stop();
+					return;
+				}
 				if( $payload['type'] === "result" )
 				{
 					$this->noException = TRUE;
@@ -103,8 +125,56 @@ class XMPPUserMAnager
 		return $removed;
 	}
 
+	//XEP-0077 change password username + password + new password
+	public function changePassword( $user, $oldPass, $newPass )
+	{
+		//login as user to remove
+		$this->jaxl->user = $user;
+		$this->jaxl->pass = $oldPass;
+		$changed = FALSE;
+
+		//register callbacks
+		$this->jaxl->addPlugin('jaxl_post_connect', function( $p, $j ){ $this->jaxl_post_connect( $p , $j ); } );
+		$this->jaxl->addPlugin('jaxl_get_auth_mech', function( $m, $j ){ $this->jaxl_get_auth_mech( $m , $j ); } );
+//TODO - in cli mode this wont get called - figure out cgi mode
+		$this->jaxl->addPlugin('jaxl_post_auth_failure', function( $p, $j ){ $this->jaxl_post_auth_failure( $p , $j ); } );
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $newPass, & $changed )
+                {
+			//state: authenticated
+			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $newPass, & $changed )
+			{
+				//state: remove registration submitted
+				if( $payload['type'] === "error" )
+				{
+					$this->errors[] = "Error changing password:\n\$payload = " . var_export( $payload, true );
+					$this->stop();
+					return;
+				}
+				if( $payload['type'] === "result" )
+				{
+					$this->jaxl->pass = $newPass;
+					$changed = TRUE;
+				}
+				$this->stop();
+			}, array( "username" => $this->jaxl->user, "password" => $newPass ) );
+                } );
+
+		//start connection
+		$this->start();
+		return $changed;
+	}
+
+	//get transaction errors
+	public function getErrors()
+	{
+		return implode( "\n", $this->errors );
+	}
+
+	//start transaction
 	private function start()
 	{
+		//flush output before starting
+		ob_flush(); flush();
 		try
 		{
 			if( $this->jaxl->connect() !== FALSE )
@@ -116,27 +186,20 @@ class XMPPUserMAnager
 		catch( \Exception $e )
 		{
 			if( ! $this->noException === TRUE )
-				echo "Phen Handler: " . $e->getMessage();
+				$this->errors[] = $e->getMessage();
 		}
 		$this->jaxl->shutdown();
+
+		//flush output once finished
+		ob_flush(); flush();
 	}
 
+	//stop transaction
 	private function stop()
 	{
+		//just sets a flag for the loop in start to stop
 		if( $this->stop === FALSE )
 			$this->stop = TRUE;
-	}
-
-	private function error( & $payload )
-	{
-		if( $payload['type'] === "error" )
-		{
-			echo "error\n";
-			print_r( $payload );
-			$this->stop();
-			return true;
-		}
-		return false;
 	}
 
 	// COMMON JAXL CALLBACKS \\
@@ -154,15 +217,47 @@ class XMPPUserMAnager
 		$jaxl->auth('SCRAM-SHA-1');
 	}
 
+//TODO - in cli mode this wont get called - figure out cgi mode
 	private function jaxl_post_auth_failure( & $payload, \JAXL & $jaxl )
 	{
 		throw new \Exception( "XMPP authentication failed for: {$jaxl->user}" );
 	}
 
-	private function jaxl_post_auth( & $payload, \JAXL & $jaxl )
+	//run test sequence
+	public static function runTests()
 	{
-		//payload appears to always be FALSE
-		//no-op
+		echo "<pre>";
+		echo "REGISTER(test,test): ";
+		$xmppum = new XMPPUserManager();
+		var_export( $xmppum->registerEntity("test","test") );
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
+		echo "REGISTER(test,test): ";
+		$xmppum = new XMPPUserManager();
+		var_export( $xmppum->registerEntity("test","test") );
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
+		echo "CHANGE PASSWORD(test,test,test2): ";
+		$xmppum = new XMPPUserManager();
+		var_export( $xmppum->changePassword("test","test","test2") );
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
+		echo "CHANGE PASSWORD(test,test2,test): ";
+		$xmppum = new XMPPUserManager();
+		var_export( $xmppum->changePassword("test","test2","test") );
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
+		echo "REMOVE(test,test): ";
+		$xmppum = new XMPPUserManager();
+		var_export($xmppum->cancelRegisterEntity("test","test"));
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
+		echo "REMOVE(test,test): ";
+		$xmppum = new XMPPUserManager();
+		var_export($xmppum->cancelRegisterEntity("test","test"));
+		echo "\n";
+		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n";
+		echo "</pre>";
 	}
 }
 ?>
