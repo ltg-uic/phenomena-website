@@ -13,8 +13,12 @@ class XMPPUserMAnager
 	//constructor
 	public function __construct()
 	{
+		//init instance, init errors array
 		$this->_init();
 		$this->errors = array();
+
+		//require XEP-0077: In-Band Registration
+		$this->jaxl->requires('JAXL0077');
 	}
 
 	//setup xmpp management connection
@@ -35,9 +39,6 @@ class XMPPUserMAnager
 		//init class vars
 		$this->stop = FALSE;
 		$this->noException = FALSE;
-
-		//require XEP-0077: In-Band Registration
-		$this->jaxl->requires('JAXL0077');
 	}
 	
 	//XEP-0077 register username + password
@@ -56,28 +57,21 @@ class XMPPUserMAnager
 				//state: form requested
 				if( $payload['type'] === "error" )
 				{
-					$this->errors[] = "Error getting registration form:\n\$payload = " . var_export( $payload, true );
+					$this->errors[] = "Error getting registration form:\n\$payload = " . var_export( $payload, TRUE );
 					$this->stop();
 					return;
 				}
 
 				//at this point, $payload is the registration form, if we want it
-				$jaxl->JAXL0077( 'register', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
+				$jaxl->JAXL0077( 'register', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $registered )
 					{
 						//state: registration submitted
 						if( $payload['type'] === "error" )
-						{
-							$this->errors[] = "Error registering:\n\$payload = " . var_export( $payload, true );
-							$this->stop();
-							return;
-						}
-						if( $payload['type'] === "result" )
-							$registered = true;
+							$this->errors[] = "Error registering:\n\$payload = " . var_export( $payload, TRUE );
+						else if( $payload['type'] === "result" )
+							$registered = TRUE;
 						$this->stop();
-					}, array(
-			                        'username' => $user,
-		        	                'password' => $pass
-			                ) );
+					}, array( 'username' => $user, 'password' => $pass ) );
 			} );
 	        } );
 
@@ -106,12 +100,8 @@ class XMPPUserMAnager
 			{
 				//state: remove registration submitted
 				if( $payload['type'] === "error" )
-				{
-					$this->errors[] = "Error cancelling registration:\n\$payload = " . var_export( $payload, true );
-					$this->stop();
-					return;
-				}
-				if( $payload['type'] === "result" )
+					$this->errors[] = "Error cancelling registration:\n\$payload = " . var_export( $payload, TRUE );
+				else if( $payload['type'] === "result" )
 				{
 					$this->noException = TRUE;
 					$removed = TRUE;
@@ -128,7 +118,7 @@ class XMPPUserMAnager
 	//XEP-0077 change password username + password + new password
 	public function changePassword( $user, $oldPass, $newPass )
 	{
-		//login as user to remove
+		//login as user to change password for
 		$this->jaxl->user = $user;
 		$this->jaxl->pass = $oldPass;
 		$changed = FALSE;
@@ -141,20 +131,13 @@ class XMPPUserMAnager
 		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $newPass, & $changed )
                 {
 			//state: authenticated
-			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $newPass, & $changed )
+			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $changed )
 			{
-				//state: remove registration submitted
+				//state: change password submitted
 				if( $payload['type'] === "error" )
-				{
-					$this->errors[] = "Error changing password:\n\$payload = " . var_export( $payload, true );
-					$this->stop();
-					return;
-				}
-				if( $payload['type'] === "result" )
-				{
-					$this->jaxl->pass = $newPass;
+					$this->errors[] = "Error changing password:\n\$payload = " . var_export( $payload, TRUE );
+				else if( $payload['type'] === "result" )
 					$changed = TRUE;
-				}
 				$this->stop();
 			}, array( "username" => $this->jaxl->user, "password" => $newPass ) );
                 } );
@@ -183,10 +166,8 @@ class XMPPUserMAnager
 		try
 		{
 			if( $this->jaxl->connect() !== FALSE )
-			{
 				while( $this->jaxl->stream !== FALSE && $this->stop === FALSE )
 					$this->jaxl->getXML();
-			}
 		}
 		catch( \Exception $e )
 		{
@@ -194,7 +175,7 @@ class XMPPUserMAnager
 				$this->errors[] = $e->getMessage();
 		}
 
-		//shutdown & reset loop control var
+		//shutdown & reset instance
 		$this->jaxl->shutdown();
 		$this->_init();
 
@@ -213,6 +194,7 @@ class XMPPUserMAnager
 	// COMMON JAXL CALLBACKS \\
 	private function jaxl_post_connect( & $payload, \JAXL $jaxl )
 	{
+		//expect payload to be true, don't know what it means if it isn't
 		if( $payload === FALSE )
 			throw new \Exception( "XMPP connection failed" );
 		$jaxl->startStream();
@@ -220,6 +202,7 @@ class XMPPUserMAnager
 
 	private function jaxl_get_auth_mech( & $mechanism, \JAXL $jaxl )
 	{
+		//require secure auth mechanism from server
 		if( ! in_array( "SCRAM-SHA-1", $mechanism ) )
 			throw new \Exception( "XMPP server doesn't support secure authentication protocol" );
 		$jaxl->auth('SCRAM-SHA-1');
@@ -228,6 +211,7 @@ class XMPPUserMAnager
 //TODO - in cli mode this wont get called - figure out cgi mode
 	private function jaxl_post_auth_failure( & $payload, \JAXL $jaxl )
 	{
+		//throw exception for failed login
 		throw new \Exception( "XMPP authentication failed for: {$jaxl->user}" );
 	}
 
