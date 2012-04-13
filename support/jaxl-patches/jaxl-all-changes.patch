@@ -1,8 +1,6 @@
-#modifications by fred kilbourn (fred@fredk.com)
-#4-12-2012
-diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../lib/php/jaxl/core/jaxl.parser.php
---- abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../lib/php/jaxl/core/jaxl.parser.php	2012-04-12 16:14:46.677746486 -0500
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../../lib/php/jaxl/core/jaxl.parser.php
+--- ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/core/jaxl.parser.php	2012-04-12 16:14:46.677746486 -0500
 @@ -67,7 +67,8 @@
              ),
          
@@ -13,9 +11,22 @@ diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../lib/php
              ),
              
              'failure'       =>  array(
-diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php ../lib/php/jaxl/xmpp/xmpp.auth.php
---- abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../lib/php/jaxl/xmpp/xmpp.auth.php	2012-04-12 14:57:55.098352802 -0500
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/env/jaxl.ini ../../lib/php/jaxl/env/jaxl.ini
+--- ../abhinavsingh-JAXL-5829c3b/env/jaxl.ini	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/env/jaxl.ini	2012-04-12 17:53:47.075183594 -0500
+@@ -50,9 +50,6 @@
+      * Values specified here are overwritten by those passed with JAXL constructor
+     */  
+     
+-    // PHP reporting level
+-    error_reporting(E_ERROR | E_WARNING | E_PARSE);
+-    
+     // Connecting user credentials
+     define('JAXL_USER_NAME', 'user');
+     define('JAXL_USER_PASS', 'pass');
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php ../../lib/php/jaxl/xmpp/xmpp.auth.php
+--- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.auth.php	2012-04-12 14:57:55.098352802 -0500
 @@ -114,32 +114,8 @@
                  $xml .= base64_encode(JAXLUtil::implodeData($response));
              }
@@ -51,9 +62,9 @@ diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php ../lib/php/j
              }
              else if($authType == 'CRAM-MD5') {
                  $xml .= base64_encode($jaxl->user.' '.hash_hmac('md5', $jaxl->pass, $arr['challenge']));
-diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../lib/php/jaxl/xmpp/xmpp.get.php
---- abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../lib/php/jaxl/xmpp/xmpp.get.php	2012-04-12 14:59:40.572560233 -0500
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../../lib/php/jaxl/xmpp/xmpp.get.php
+--- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.get.php	2012-04-12 14:59:40.572560233 -0500
 @@ -145,6 +145,11 @@
          }
          
@@ -66,9 +77,9 @@ diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../lib/php/ja
              if($arr['xmlns'] == "urn:ietf:params:xml:ns:xmpp-sasl") {
                  if($jaxl->mode == "cgi") JAXL0206::restartStream($jaxl);
                  else XMPPSend::startStream($jaxl);
-diff -ru -x .gitignore abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php ../lib/php/jaxl/xmpp/xmpp.send.php
---- abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../lib/php/jaxl/xmpp/xmpp.send.php	2012-04-12 14:55:00.061060489 -0500
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php ../../lib/php/jaxl/xmpp/xmpp.send.php
+--- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.send.php	2012-04-12 14:55:00.061060489 -0500
 @@ -86,7 +86,10 @@
                  case 'CRAM-MD5':
                      break;
