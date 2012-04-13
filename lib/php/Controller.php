@@ -10,7 +10,7 @@ class Controller
 	private static $lastPage = NULL;
 	private $resource;
 
-	public function __construct( URIQueue & $uq )
+	public function __construct( URIQueue $uq )
 	{
 		if( self::$instance === TRUE )
 			throw new \Exception( "Controller should never instantiate more than once" );
@@ -42,7 +42,7 @@ class Controller
 			exit();
 		}
 
-		$this->resource =& $res;
+		$this->resource = $res;
 	}
 
 	public static function getLastPage()

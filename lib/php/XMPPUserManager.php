@@ -6,14 +6,19 @@ namespace PhenLib;
 class XMPPUserMAnager
 {
 	private $jaxl;
-	private $user;
-	private $pass;
 	private $stop;
 	private $noException;
 	private $errors;
 
-	//setup xmpp management connection
+	//constructor
 	public function __construct()
+	{
+		$this->_init();
+		$this->errors = array();
+	}
+
+	//setup xmpp management connection
+	private function _init()
 	{
 		//init jaxl
 		$this->jaxl = new \JAXL( array(
@@ -28,11 +33,8 @@ class XMPPUserMAnager
 			) );
 
 		//init class vars
-		$this->user = NULL;
-		$this->pass = NULL;
 		$this->stop = FALSE;
 		$this->noException = FALSE;
-		$this->errors = array();
 
 		//require XEP-0077: In-Band Registration
 		$this->jaxl->requires('JAXL0077');
@@ -42,16 +44,14 @@ class XMPPUserMAnager
 	public function registerEntity( $user, $pass )
 	{
 		//init vars
-		$this->user = $user;
-		$this->pass = $pass;
 		$registered = FALSE;
 
 		//register callback
-		$this->jaxl->addPlugin( 'jaxl_post_connect', function( $payload, $jaxl ) use ( & $registered )
+		$this->jaxl->addPlugin( 'jaxl_post_connect', function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
 	        {
 			//state: connected
 			$this->jaxl_post_connect( $payload, $jaxl );
-	                $jaxl->JAXL0077( 'getRegistrationForm', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $registered )
+	                $jaxl->JAXL0077( 'getRegistrationForm', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
 			{ 
 				//state: form requested
 				if( $payload['type'] === "error" )
@@ -62,7 +62,7 @@ class XMPPUserMAnager
 				}
 
 				//at this point, $payload is the registration form, if we want it
-				$jaxl->JAXL0077( 'register', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $registered )
+				$jaxl->JAXL0077( 'register', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
 					{
 						//state: registration submitted
 						if( $payload['type'] === "error" )
@@ -75,8 +75,8 @@ class XMPPUserMAnager
 							$registered = true;
 						$this->stop();
 					}, array(
-			                        'username' => $this->user,
-		        	                'password' => $this->pass
+			                        'username' => $user,
+		        	                'password' => $pass
 			                ) );
 			} );
 	        } );
@@ -175,6 +175,11 @@ class XMPPUserMAnager
 	{
 		//flush output before starting
 		ob_flush(); flush();
+
+		//reset errors array
+		$this->errors = array();
+
+		//main loop
 		try
 		{
 			if( $this->jaxl->connect() !== FALSE )
@@ -188,7 +193,10 @@ class XMPPUserMAnager
 			if( ! $this->noException === TRUE )
 				$this->errors[] = $e->getMessage();
 		}
+
+		//shutdown & reset loop control var
 		$this->jaxl->shutdown();
+		$this->_init();
 
 		//flush output once finished
 		ob_flush(); flush();
@@ -203,14 +211,14 @@ class XMPPUserMAnager
 	}
 
 	// COMMON JAXL CALLBACKS \\
-	private function jaxl_post_connect( & $payload, \JAXL & $jaxl )
+	private function jaxl_post_connect( & $payload, \JAXL $jaxl )
 	{
 		if( $payload === FALSE )
 			throw new \Exception( "XMPP connection failed" );
 		$jaxl->startStream();
 	}
 
-	private function jaxl_get_auth_mech( & $mechanism, \JAXL & $jaxl )
+	private function jaxl_get_auth_mech( & $mechanism, \JAXL $jaxl )
 	{
 		if( ! in_array( "SCRAM-SHA-1", $mechanism ) )
 			throw new \Exception( "XMPP server doesn't support secure authentication protocol" );
@@ -218,7 +226,7 @@ class XMPPUserMAnager
 	}
 
 //TODO - in cli mode this wont get called - figure out cgi mode
-	private function jaxl_post_auth_failure( & $payload, \JAXL & $jaxl )
+	private function jaxl_post_auth_failure( & $payload, \JAXL $jaxl )
 	{
 		throw new \Exception( "XMPP authentication failed for: {$jaxl->user}" );
 	}
@@ -233,27 +241,22 @@ class XMPPUserMAnager
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
 		echo "REGISTER(test,test): ";
-		$xmppum = new XMPPUserManager();
 		var_export( $xmppum->registerEntity("test","test") );
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
 		echo "CHANGE PASSWORD(test,test,test2): ";
-		$xmppum = new XMPPUserManager();
 		var_export( $xmppum->changePassword("test","test","test2") );
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
 		echo "CHANGE PASSWORD(test,test2,test): ";
-		$xmppum = new XMPPUserManager();
 		var_export( $xmppum->changePassword("test","test2","test") );
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
 		echo "REMOVE(test,test): ";
-		$xmppum = new XMPPUserManager();
 		var_export($xmppum->cancelRegisterEntity("test","test"));
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
 		echo "REMOVE(test,test): ";
-		$xmppum = new XMPPUserManager();
 		var_export($xmppum->cancelRegisterEntity("test","test"));
 		echo "\n";
 		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n";
