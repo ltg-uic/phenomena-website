@@ -14,6 +14,7 @@ local st = require "util.stanza";
 local sm = require "core.sessionmanager";
 local sha1 = require "util.hashes".sha1;
 local base64 = require "util.encodings".base64;
+local binaryXOR = require "util.sasl.scram".binaryXOR;
 
 local sessions = {};
 local default_headers = { };
@@ -50,10 +51,26 @@ local function session_reset_stream(session)
 ]]--
 
 	function session.data(conn, data)
-		data, _ = data:gsub("[%z\255]", "")
+--strip 0, 255 out of data string (attempt for basic compliance with old rfc, i think)
+--		data, _ = data:gsub("[%z\255]", "")
+
 		log( "debug", "Parsing: %s", data:gsub("%c", ""));
 
---TODO: implement frame decoding here
+--TODO:	implement frame decoding here
+--RFC:	http://tools.ietf.org/html/rfc6455#section-5
+log( "debug", "DATA FRAME:" );
+log( "debug", "FIRST  BYTE[bits] (FIN[1], RSV1[1], RSV2[1], RSV3[1], Opcode[4]):	" .. string.format( "%02X", data:byte( 1, 1 ) ) );
+log( "debug", "SECOND BYTE[bits] (Mask[1], Payload Length[7]):				" .. string.format( "%02X", data:byte( 2, 2 ) ) );
+local mask = data:byte( 3, 3 ) * 16777216;
+local mask = mask + data:byte( 4, 4 ) * 65536;
+local mask = mask + data:byte( 5, 5 ) * 256;
+local mask = mask + data:byte( 6, 6 );
+log( "debug", "MASK (assumed 7 bit payload): " .. mask );
+local x = 7;
+repeat
+	log( "debug", "VARIABLE PAYLOAD: (MUST STILL DECODE):					" .. string.format( "%02X%02X", data:byte( x, x ), data:byte( x+1, x+1 ) ) );
+	x = x+2;
+until x >= #data
 
 		local ok, err = stream:feed(data);
 		if not ok then
@@ -96,7 +113,7 @@ local function session_close(session, reason)
 		end
 		session.send("</stream:stream>");
 		session.conn:close();
---TODO: figure out how to suppress here that happens here
+--TODO: figure out how to suppress error that happens here
 		if websocket_listener then
 			websocket_listener.ondisconnect(session.conn, (reason and (reason.text or reason.condition)) or reason or "session closed");
 		end
