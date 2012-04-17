@@ -63,6 +63,22 @@ abstract class Template
 		self::$hooks['head']->appendChild( $link );
 	}
 
+	static public function scriptExternal( $js )
+	{
+		$script = self::$doc->createElement( "script" );
+		$script->setAttribute( "type", "text/javascript" );
+		$script->setAttribute( "src", $js );
+		self::$hooks['head']->appendChild( $script );
+	}
+
+	static public function scriptLocal( $js )
+	{
+		$script = self::$doc->createElement( "script" );
+		$script->setAttribute( "type", "text/javascript" );
+		$script->appendChild( self::$doc->createComment( "\n{$js}\n" ) );
+		self::$hooks['head']->appendChild( $script );
+	}
+
 	static public function integrate( $hook, $obj )
 	{
 		self::init();

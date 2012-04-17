@@ -79,9 +79,18 @@ $cont = new Controller( $uq );
 $res = $cont->getResource( $uq );
 
 //generate output
-Template::linkcss( "lib/css/phenomena.css" );
+Template::linkCSS( "lib/css/phenomena.css" );
+Template::scriptExternal( "lib/js/lightstring/lightstring.js" );
+Template::scriptExternal( "lib/js/lightstring/jid.js" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
+
+$lightstring = <<<EOJAVASCRIPT
+var ls = new Lightstring.Connection( "ws://climax-linux.datacenter.fredk.com:5281/xmpp-websocket" );
+ls.connect( "ls-test", "ls-test" );
+ls.disconnect();
+EOJAVASCRIPT;
+
+Template::scriptLocal( $lightstring );
 Template::display();
-XMPPUserManager::runTests();
 ?>
