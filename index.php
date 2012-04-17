@@ -88,7 +88,7 @@ Template::integrate( "body", new \Phen\Debug );
 $lightstring = <<<EOJAVASCRIPT
 var ls = new Lightstring.Connection( "ws://climax-linux.datacenter.fredk.com:5281/xmpp-websocket" );
 ls.connect( "ls-test", "ls-test" );
-ls.disconnect();
+//ls.disconnect();
 EOJAVASCRIPT;
 
 Template::scriptLocal( $lightstring );

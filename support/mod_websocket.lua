@@ -12,6 +12,8 @@ local lxp = require "lxp";
 local new_xmpp_stream = require "util.xmppstream".new;
 local st = require "util.stanza";
 local sm = require "core.sessionmanager";
+local sha1 = require "util.hashes".sha1;
+local base64 = require "util.encodings".base64;
 
 local sessions = {};
 local default_headers = { };
@@ -40,19 +42,23 @@ local function session_reset_stream(session)
 
 --TODO:	might not be necessary, don't understand yet
 --	(added based on http://hg.prosody.im/0.8/rev/ccf417c7b5d4)
+--[[
 	function session.reset_stream()
 		session.notopen = true;
 		session.stream:reset()
 	end
+]]--
 
 	function session.data(conn, data)
 		data, _ = data:gsub("[%z\255]", "")
-		log("debug", "Parsing: %s", data)
+		log( "debug", "Parsing: %s", data:gsub("%c", ""));
+
+--TODO: implement frame decoding here
 
 		local ok, err = stream:feed(data);
 		if not ok then
 			log("debug", "Received invalid XML (%s) %d bytes: %s", tostring(err), #data,
-				data:sub(1, 300):gsub("[\r\n]+", " "):gsub("[%z\1-\31]", "_"));
+				data:sub(1, 300):gsub("[\r\n]+", " "):gsub("[%z\1-\31]", "_"):gsub("%c", ""));
 			session:close("xml-not-well-formed");
 		end
 	end
@@ -90,7 +96,10 @@ local function session_close(session, reason)
 		end
 		session.send("</stream:stream>");
 		session.conn:close();
-		websocket_listener.ondisconnect(session.conn, (reason and (reason.text or reason.condition)) or reason or "session closed");
+--TODO: figure out how to suppress here that happens here
+		if websocket_listener then
+			websocket_listener.ondisconnect(session.conn, (reason and (reason.text or reason.condition)) or reason or "session closed");
+		end
 	end
 end
 
@@ -141,14 +150,11 @@ function handle_request(method, body, request)
 		end
 	end
 
---implement subprotocol support
---Optionally, a |Sec-WebSocket-Protocol| header field, with a list
---        of values indicating which protocols the client would like to
---                speak, ordered by preference.
---	local subprotocol = request.headers["Websocket-Protocol"];
---	if subprotocol ~= nil and subprotocol ~= "XMPP" then
---		return "<html><body>You really don't look like an XMPP Websocket client to me... what do you want?</body></html>";
---	end
+	local key = request.headers["sec-websocket-key"];
+	if key == nil then
+		return "<html><body>You really don't look like an XMPP Websocket client to me... what do you want?</body></html>";
+	end
+	accept = base64.encode( sha1( key .. "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" ) );
 
 	if not method then
 		log("debug", "Request %s suffered error %s", tostring(request.id), body);
@@ -156,12 +162,11 @@ function handle_request(method, body, request)
 	end
 
 	request.conn:setlistener(websocket_listener);
-	request.write("HTTP/1.1 101 Web Socket Protocol Handshake\r\n");
-	request.write("Upgrade: WebSocket\r\n");
+	request.write("HTTP/1.1 101 Switching Protocols\r\n");
+	request.write("Upgrade: websocket\r\n");
 	request.write("Connection: Upgrade\r\n");
---	request.write("WebSocket-Origin: file://\r\n"); -- FIXME
---	request.write("WebSocket-Location: ws://localhost:5281/xmpp-websocket\r\n"); -- FIXME
---	request.write("WebSocket-Protocol: XMPP\r\n");
+	request.write("Sec-WebSocket-Accept: " .. accept .. "\r\n");
+--TODO: add proper logic for Sec-WebSocket-Protocol and Sec-WebSocket-Extensions
 	request.write("\r\n");
 
 	return true;
