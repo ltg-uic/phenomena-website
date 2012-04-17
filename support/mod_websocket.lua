@@ -1,10 +1,15 @@
+--Obtained from http://code.google.com/p/prosody-modules/source/browse/mod_websocket/mod_websocket.lua
+--Author appears to be Ali Sabil <Ali.Sabil@gmail.com>
+--Code had no license in attribution in header, emailed Ali 4-17-12 to see if he wanted any since we will have to modify this heavily and probably re-release
+--Changes to support latest WebSocket RFC by Fred Kilbourn <fred@fredk.com>
+
 module.host = "*" -- Global module
 
 local logger = require "util.logger";
 local log = logger.init("mod_websocket");
 local httpserver = require "net.httpserver";
 local lxp = require "lxp";
-local init_xmlhandlers = require "core.xmlhandlers";
+local new_xmpp_stream = require "util.xmppstream".new;
 local st = require "util.stanza";
 local sm = require "core.sessionmanager";
 
@@ -28,16 +33,23 @@ end
 
 
 local function session_reset_stream(session)
-	local parser = lxp.new(init_xmlhandlers(session, stream_callbacks), "\1");
-	session.parser = parser;
+	local stream = new_xmpp_stream(session, stream_callbacks);
+	session.stream = stream;
 
 	session.notopen = true;
+
+--TODO:	might not be necessary, don't understand yet
+--	(added based on http://hg.prosody.im/0.8/rev/ccf417c7b5d4)
+	function session.reset_stream()
+		session.notopen = true;
+		session.stream:reset()
+	end
 
 	function session.data(conn, data)
 		data, _ = data:gsub("[%z\255]", "")
 		log("debug", "Parsing: %s", data)
 
-		local ok, err = parser:parse(data)
+		local ok, err = stream:feed(data);
 		if not ok then
 			log("debug", "Received invalid XML (%s) %d bytes: %s", tostring(err), #data,
 				data:sub(1, 300):gsub("[\r\n]+", " "):gsub("[%z\1-\31]", "_"));
@@ -121,7 +133,7 @@ end
 
 
 function handle_request(method, body, request)
-	if request.method ~= "GET" or request.headers["upgrade"] ~= "WebSocket" or request.headers["connection"] ~= "Upgrade" then
+	if request.method ~= "GET" or request.headers["upgrade"] ~= "websocket" or request.headers["connection"] ~= "Upgrade" then
 		if request.method == "OPTIONS" then
 			return { headers = default_headers, body = "" };
 		else
@@ -129,10 +141,14 @@ function handle_request(method, body, request)
 		end
 	end
 
-	local subprotocol = request.headers["Websocket-Protocol"];
-	if subprotocol ~= nil and subprotocol ~= "XMPP" then
-		return "<html><body>You really don't look like an XMPP Websocket client to me... what do you want?</body></html>";
-	end
+--implement subprotocol support
+--Optionally, a |Sec-WebSocket-Protocol| header field, with a list
+--        of values indicating which protocols the client would like to
+--                speak, ordered by preference.
+--	local subprotocol = request.headers["Websocket-Protocol"];
+--	if subprotocol ~= nil and subprotocol ~= "XMPP" then
+--		return "<html><body>You really don't look like an XMPP Websocket client to me... what do you want?</body></html>";
+--	end
 
 	if not method then
 		log("debug", "Request %s suffered error %s", tostring(request.id), body);
@@ -143,9 +159,9 @@ function handle_request(method, body, request)
 	request.write("HTTP/1.1 101 Web Socket Protocol Handshake\r\n");
 	request.write("Upgrade: WebSocket\r\n");
 	request.write("Connection: Upgrade\r\n");
-	request.write("WebSocket-Origin: file://\r\n"); -- FIXME
-	request.write("WebSocket-Location: ws://localhost:5281/xmpp-websocket\r\n"); -- FIXME
-	request.write("WebSocket-Protocol: XMPP\r\n");
+--	request.write("WebSocket-Origin: file://\r\n"); -- FIXME
+--	request.write("WebSocket-Location: ws://localhost:5281/xmpp-websocket\r\n"); -- FIXME
+--	request.write("WebSocket-Protocol: XMPP\r\n");
 	request.write("\r\n");
 
 	return true;
