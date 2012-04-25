@@ -34,7 +34,7 @@ abstract class XMPPJAXL
 			'domain'  => $GLOBALS['xmppDomain'],
 			'logPath' => $GLOBALS['xmppLogPath'],
 			'mode'    => 'cgi-stateless'
-//			,'logLevel'=>100000
+			,'logLevel'=>100000
 			) );
 
 		//require xeps

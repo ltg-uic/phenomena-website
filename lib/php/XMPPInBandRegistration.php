@@ -8,6 +8,7 @@ class XMPPInBandRegistration extends XMPPJAXL
 	//constructor
 	public function __construct( $xeps = array() )
 	{
+		//XEP-0077: In-Band Registration
 		parent::__construct( array( "0077" ) );
 	}
 
