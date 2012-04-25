@@ -18,7 +18,18 @@ require_once( "config.php" );
 \spl_autoload_register( function( $name )
 {
 	//TODO validate / sanitize this input
-	list( $ns, $cl ) = explode( "\\", $name );
+	$name_arr = explode( "\\", $name );
+	switch( sizeof( $name_arr ) )
+	{
+		case 2:
+			$ns = $name_arr[0];
+			$cl = $name_arr[1];
+			break;
+		case 1:
+			$cl = $name_arr[0];
+		default:
+			$ns = NULL;
+	}
 	switch( $ns )
 	{
 		case "Phen":
@@ -83,4 +94,5 @@ Template::linkCSS( "lib/css/phenomena.css" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
 Template::display();
+XMPPInBandRegistration::runTests();
 ?>

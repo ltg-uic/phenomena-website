@@ -8,5 +8,4 @@ $GLOBALS['xmppDomain'] = "";
 $GLOBALS['xmppUser'] = "";
 $GLOBALS['xmppPass'] = "";
 $GLOBALS['xmppLogPath'] = "";
-$GLOBALS['xmppPidPath'] = "";
 ?>

@@ -1,3 +1,68 @@
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/core/jaxl.class.php ../../lib/php/jaxl/core/jaxl.class.php
+--- ../abhinavsingh-JAXL-5829c3b/core/jaxl.class.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/core/jaxl.class.php	2012-04-25 03:26:36.951181221 -0500
+@@ -252,7 +252,7 @@
+         var $pid = false;
+ 
+         /**
+-         * Mode of the connected Jaxl instance (cgi or cli)
++         * Mode of the connected Jaxl instance (cgi, cgi-stateless, or cli)
+          *
+          * @var bool|string
+         */
+@@ -607,7 +607,7 @@
+         */
+         function startCore(/* $mode, $param1, $param2, ... */) {
+             $argv = func_get_args();
+-            $mode = $argv[0];
++            $mode = isset($argv[0]) ? $argv[0] : NULL;
+ 
+             if($mode) {
+                 switch($mode) {
+@@ -625,7 +625,7 @@
+                 }
+             }
+ 
+-            if($this->mode == 'cli') {
++            if($this->mode == 'cli' || $this->mode == 'cgi-stateless') {
+                 try {
+                     if($this->connect()) {
+                         while($this->stream) {
+@@ -634,10 +634,16 @@
+                     }
+                 }
+                 catch(JAXLException $e) {
++                    if($this->mode == 'cgi-stateless') {
++                        throw $e;
++                    }
+                     die($e->getMessage());
+                 }
+             
+                 /* Exit Jaxl after end of loop */
++                if($this->mode == 'cgi-stateless') {
++                    return;
++                }
+                 exit;
+             }
+         }
+@@ -760,7 +766,7 @@
+             }
+            
+             // check Jaxl dependency on PHP extension in cli mode
+-            if($this->mode == "cli") {
++            if($this->mode == "cli" || $this->mode == "cgi-stateless") {
+                 if(($this->openSSL = JAXLUtil::sslEnabled())) 
+                     $this->log("[[JAXL]] OpenSSL extension is loaded.", 5);
+                 else
+@@ -769,7 +775,7 @@
+                 if(!function_exists('fsockopen'))
+                     throw new JAXLException("[[JAXL]] Requires fsockopen method");
+                 
+-                if(@is_writable($this->pidPath))
++                if($this->mode == "cli" && @is_writable($this->pidPath))
+                     file_put_contents($this->pidPath, $this->pid);
+             }
+             
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../../lib/php/jaxl/core/jaxl.parser.php
 --- ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php	2011-05-01 07:26:24.000000000 -0500
 +++ ../../lib/php/jaxl/core/jaxl.parser.php	2012-04-12 16:14:46.677746486 -0500
@@ -62,6 +127,18 @@ diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.auth.php ../../lib
              }
              else if($authType == 'CRAM-MD5') {
                  $xml .= base64_encode($jaxl->user.' '.hash_hmac('md5', $jaxl->pass, $arr['challenge']));
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.class.php ../../lib/php/jaxl/xmpp/xmpp.class.php
+--- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.class.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.class.php	2012-04-25 02:15:24.477451028 -0500
+@@ -433,7 +433,7 @@
+          * Routes incoming XMPP data to appropriate handlers
+         */
+         function handler($payload) {
+-            if($payload == '' && $this->mode == 'cli') return '';
++            if($payload == '' && ($this->mode == 'cli' || $this->mode == 'cgi-stateless')) return '';
+             if($payload != '' && $this->mode == 'cgi') $this->log("[[XMPPGet]] \n".$payload, 4);
+             $payload = $this->executePlugin('jaxl_pre_handler', $payload);
+            
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../../lib/php/jaxl/xmpp/xmpp.get.php
 --- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php	2011-05-01 07:26:24.000000000 -0500
 +++ ../../lib/php/jaxl/xmpp/xmpp.get.php	2012-04-12 14:59:40.572560233 -0500
