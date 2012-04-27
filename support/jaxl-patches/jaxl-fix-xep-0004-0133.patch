@@ -1,0 +1,129 @@
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../../lib/php/jaxl/core/jaxl.parser.php
+--- ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/core/jaxl.parser.php	2012-04-26 16:34:00.340919957 -0500
+@@ -208,7 +209,7 @@
+                 }
+             }
+             
+-            if($sxe) $payload['xml'] = $xml;
++            if($sxe) $payload[$node]['xml'] = $xml;
+             unset($xml);
+             return $payload;
+         }
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0004.php ../../lib/php/jaxl/xep/jaxl.0004.php
+--- ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0004.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xep/jaxl.0004.php	2012-04-27 00:42:34.373014463 -0500
+@@ -63,7 +63,7 @@
+             if($inst) $payload .= '<instruction>'.$inst.'</instruction>';
+             foreach($fields as $field) {
+                 $payload .= '<field var="'.$field['var'].'">';
+-                $payload .= '<value>'.$field['value'].'</value>';
++                $payload .= '<value>'.htmlspecialchars($field['value'], ENT_QUOTES | ENT_XML1).'</value>';
+                 $payload .= '</field>';
+             }
+             $payload .= '</x>';
+@@ -79,21 +79,27 @@
+             foreach($fields as $field) {
+                 $f = array();
+             
+-                $f['type'] = $field['@']['type'];
+-                $f['label'] = $field['@']['label'];
+-                $f['var'] = $field['@']['var'];
++                $f['type'] = (string)$field['type'];
++                $f['label'] = (string)$field['label'];
++                $f['var'] = (string)$field['var'];
+                 
+-                $f['desc'] = $field['#']['desc'][0]['#'];
+-                $f['required'] = $field['#']['required'][0]['#'];
+-                $f['value'] = $field['#']['value'][0]['#'];
++                $f['desc'] = (string)$field->desc;
++                $f['required'] = (string)$field->required;
++                $f['value'] = (string)$field->value;
+                                 
+-                if(is_array($field['#']['option'])) { 
+-                    $f['option'] = array();
+-                    foreach($field['#']['option'] as $option) {
+-                        $f['option'][] = array('label'=>$option['@']['label'], 'value'=>$option['#']['value'][0]['#']);
+-                    }
++//              if(is_array($field['#']['option'])) { 
++//                  $f['option'] = array();
++//                  foreach($field['#']['option'] as $option) {
++//                      $f['option'][] = array('label'=>$option['@']['label'], 'value'=>$option['#']['value'][0]['#']);
++//                  }
++//              }
++//TODO: Options unimplemented / unused as of yet, need to implement
++                foreach($field->option as $option)
++                {
++                    var_export($option);
++                    die("xep 0004 option encountered");
+                 }
+-                
++
+                 $result[] = $f;
+             }
+             return $result;
+diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0133.php ../../lib/php/jaxl/xep/jaxl.0133.php
+--- ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0133.php	2011-05-01 07:26:24.000000000 -0500
++++ ../../lib/php/jaxl/xep/jaxl.0133.php	2012-04-26 20:40:46.843220495 -0500
+@@ -61,26 +61,33 @@
+         }
+         
+         protected static function requestForm($jaxl, $to, $from, $type) {
++            $jaxl->getSXE = true;
+             $callback = array('JAXL0133', 'handleForm');
+             return JAXL0050::executeCommand($jaxl, $to, $from, self::$node."#".$type, $callback);
+         }
+         
+         public static function handleForm($payload, $jaxl) {
+-            print_r($payload);
+-            $id = $payload['iq']['@']['id'];
+-            $domain = $payload['iq']['@']['from'];
+-            $node = $payload['iq']['#']['command'][0]['@']['node'];
+-            $sid = $payload['iq']['#']['command'][0]['@']['sessionid'];
+-            $status = $payload['iq']['#']['command'][0]['@']['status'];
++            $jaxl->getSXE = false;
++
++            $id = $payload['id'];
++            $domain = $payload['from'];
++            $node = (string)$payload['xml']->command['node'];
++            $sid = (string)$payload['xml']->command['sessionid'];
++            $status = (string)$payload['xml']->command['status'];
+ 
+             if($status == "completed") {
+                 $callback = self::$buffer[self::$buffer[$id]]['callback'];
+                 unset(self::$buffer[self::$buffer[$id]]);
+                 unset(self::$buffer[$id]);
+-                call_user_func($callback, $payload);
++                call_user_func($callback, $payload, $jaxl);
++            }
++            else if($status == "canceled") {
++                $callback = self::$buffer[$id]['callback'];
++                unset(self::$buffer[$id]);
++                call_user_func($callback, $payload, $jaxl);
+             }
+             else if($status == "executing") {
+-                $fields = JAXL0004::getFormField($payload['iq']['#']['command'][0]['#']['x'][0]['#']['field']);
++                $fields = JAXL0004::getFormField($payload['xml']->command->x->field);
+                 foreach($fields as $key => $field) {
+                     switch($field['var']) {
+                         case 'accountjids':
+@@ -107,14 +114,17 @@
+                     }
+                 }
+                 $payload = JAXL0004::setFormField($fields, false, false, 'submit');
+-                self::$buffer[self::submitForm($domain, false, $payload, $node, $sid)] = $id;
++                self::$buffer[self::submitForm($jaxl, $domain, false, $payload, $node, $sid)] = $id;
+             }
+             else {
+-                JAXLog::log("Unhandled form status type...");
++                $err = "[[JAXL0133]] Unhandled form status type ".$status;
++                $jaxl->log($err);
++                throw new JAXLException($err);
+             }
+         }
+         
+         protected static function submitForm($jaxl, $to, $from, $payload, $node, $sid) {
++            $jaxl->getSXE = true;
+             $payload = '<command xmlns="http://jabber.org/protocol/commands" node="'.$node.'" sessionid="'.$sid.'">'.$payload.'</command>';
+             return XMPPSend::iq($jaxl, 'set', $payload, $to, $from, array('JAXL0133', 'handleForm'));
+         }
