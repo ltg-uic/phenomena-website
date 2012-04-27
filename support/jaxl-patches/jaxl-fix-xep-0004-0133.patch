@@ -1,3 +1,5 @@
+#modifications by fred kilbourn (fred@fredk.com)
+#4-27-2012
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php ../../lib/php/jaxl/core/jaxl.parser.php
 --- ../abhinavsingh-JAXL-5829c3b/core/jaxl.parser.php	2011-05-01 07:26:24.000000000 -0500
 +++ ../../lib/php/jaxl/core/jaxl.parser.php	2012-04-26 16:34:00.340919957 -0500
