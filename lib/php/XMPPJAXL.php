@@ -1,6 +1,7 @@
 <?php
 namespace PhenLib;
 
+//TODO: Change to batch processing of commands with one connection
 abstract class XMPPJAXL
 {
 	protected $jaxl;
@@ -40,6 +41,12 @@ abstract class XMPPJAXL
 		//require xeps
 		for( $x = 0; $x < sizeof( $this->xeps ); $x++ )
 			$this->jaxl->requires( "JAXL{$this->xeps[$x]}" );
+
+		//hook in callbacks
+		//(add callbacks using anonymous functions so we can keep them private)
+		$this->jaxl->addPlugin( 'jaxl_post_connect', function( $stream_exists, \JAXL $jaxl ) { self::callback_jaxl_post_connect( $stream_exists, $jaxl ); } );
+		$this->jaxl->addPlugin( 'jaxl_get_auth_mech', function( $mechanisms, \JAXL $jaxl ) { self::callback_jaxl_get_auth_mech( $mechanisms, $jaxl ); } );
+		$this->jaxl->addPlugin( 'jaxl_post_auth_failure', function( $auth_success, \JAXL $jaxl ) { self::callback_jaxl_post_auth_failure( $auth_success, $jaxl ); } );
 	}
 
 	//start transaction
@@ -89,24 +96,27 @@ abstract class XMPPJAXL
 		return implode( "\n", $this->errors );
 	}
 
-	// COMMON JAXL CALLBACKS \\
-	final protected function jaxl_post_connect( & $payload, \JAXL $jaxl )
+	// JAXL CALLBACKS \\
+
+	//stream_exists reports if stream was able to connect
+	final static private function callback_jaxl_post_connect( & $stream_exists, \JAXL $jaxl )
 	{
-		//expect payload to be true, don't know what it means if it isn't
-		if( $payload === FALSE )
+		if( $stream_exists === FALSE )
 			throw new \Exception( "XMPP connection failed" );
 		$jaxl->startStream();
 	}
 
-	final protected function jaxl_get_auth_mech( & $mechanism, \JAXL $jaxl )
+	//mechanisms is supported auth mechs
+	final static private function callback_jaxl_get_auth_mech( & $mechanisms, \JAXL $jaxl )
 	{
 		//require secure auth mechanism from server
-		if( ! in_array( "SCRAM-SHA-1", $mechanism ) )
+		if( ! in_array( "SCRAM-SHA-1", $mechanisms ) )
 			throw new \Exception( "XMPP server doesn't support secure authentication protocol" );
 		$jaxl->auth('SCRAM-SHA-1');
 	}
 
-	final protected function jaxl_post_auth_failure( & $payload, \JAXL $jaxl )
+	//auth_success is always false
+	final static private function callback_jaxl_post_auth_failure( & $auth_success, \JAXL $jaxl )
 	{
 		//throw exception for failed login
 		throw new \Exception( "XMPP authentication failed for: {$jaxl->user}" );

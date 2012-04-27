@@ -23,6 +23,7 @@ EOHTML
 
 	public function execute()
 	{
+//TODO - password minimum complexity
 		$db = \PhenLib\Database::connect();
 
 		$sql = "INSERT INTO `phen_website`.`users`
@@ -45,13 +46,43 @@ EOHTML
 		$stmt->bind_param( "sssss", $_POST['username'], $pass, $_POST['email'], $pass, $_POST['email'] );
 
 		$stmt->execute();
+
+		$id = $stmt->insert_id;
 		
 		$stmt->close();
+
+		$this->setupUser( $id ); 
 	}
 
 	public function getRedirect()
 	{
 		return \PhenLib\Controller::getLastPage();
+	}
+
+
+	private function setupUser( $id )
+	{
+		$windows = 4;
+
+		echo "Setting up user id: {$id}<br />";
+		//get phenomenas from pod server, update db
+		//right now we just get from db until a query to the server works
+		$db = \PhenLib\Database::connect();
+
+		$db->real_query( "SELECT * FROM `phenomenas`" );
+
+		$res = $db->store_result();
+
+		$xmppsa = new \PhenLib\XMPPServiceAdministration();
+		while( $row = $res->fetch_assoc() )
+			for( $x=0; $x<$windows; $x++ )
+			{
+				$xmpp_user = "{$row['phenomena_name']}_{$id}_{$x}";
+				echo "Creating XMPP User: {$xmpp_user}<br />";
+				if( $xmppsa->addUser( $xmpp_user, $GLOBALS['xmppDomain'], \PhenLib\Password::generateRandom() ) === FALSE )
+					echo "Error creating user: " . $xmppsa->getErrors() . "<br />";
+			}
+		$res->free();
 	}
 }
 ?>

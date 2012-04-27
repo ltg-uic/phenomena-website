@@ -16,7 +16,7 @@ class Home extends \PhenLib\Page
 
 		$root->appendChild( (new Login)->getDOC() );
 		$root->appendChild( (new Register)->getDOC() );
-		$root->appendChild( (new Login)->getDOC() );
+//		$root->appendChild( (new Login)->getDOC() );
 	}
 
 	public function getTitle()

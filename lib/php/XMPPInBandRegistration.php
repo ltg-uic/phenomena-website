@@ -1,17 +1,14 @@
 <?php
 namespace PhenLib;
 
-//TODO - password minimum complexity
-
 class XMPPInBandRegistration extends XMPPJAXL
 {
 	//constructor
-	public function __construct( $xeps = array() )
+	public function __construct()
 	{
 		//XEP-0077: In-Band Registration
 		parent::__construct( array( "0077" ) );
 	}
-
 	
 	//XEP-0077 register username + password
 	public function registerEntity( $user, $pass )
@@ -23,16 +20,16 @@ class XMPPInBandRegistration extends XMPPJAXL
 		$registered = FALSE;
 
 		//register callback
-		$this->jaxl->addPlugin( 'jaxl_post_connect', function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
+		$this->jaxl->addPlugin( 'jaxl_post_connect', function( $_, $jaxl ) use ( & $user, & $pass, & $registered )
 	        {
 			//state: connected
-			$this->jaxl_post_connect( $payload, $jaxl );
 	                $jaxl->JAXL0077( 'getRegistrationForm', '', $GLOBALS['xmppDomain'], function( $payload, $jaxl ) use ( & $user, & $pass, & $registered )
 			{ 
 				//state: form requested
 				if( $payload['type'] === "error" )
 				{
-					$this->errors[] = "Error getting registration form:\n\$payload = " . var_export( $payload, TRUE );
+					$this->errors[] = "Error getting registration form: " . 
+						"( code: {$payload['errorCode']}, type: {$payload['errorType']}, condition: {$payload['errorCondition']} )";
 					$this->stop();
 					return $registered;
 				}
@@ -42,7 +39,8 @@ class XMPPInBandRegistration extends XMPPJAXL
 					{
 						//state: registration submitted
 						if( $payload['type'] === "error" )
-							$this->errors[] = "Error registering:\n\$payload = " . var_export( $payload, TRUE );
+							$this->errors[] = "Error submitting registration form: " . 
+								"( code: {$payload['errorCode']}, type: {$payload['errorType']}, condition: {$payload['errorCondition']} )";
 						else if( $payload['type'] === "result" )
 							$registered = TRUE;
 						$this->stop();
@@ -64,19 +62,16 @@ class XMPPInBandRegistration extends XMPPJAXL
 		//local return var for callback
 		$removed = FALSE;
 
-		//register callbacks
-		$this->jaxl->addPlugin('jaxl_post_connect', function( $p, $j ){ $this->jaxl_post_connect( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_get_auth_mech', function( $m, $j ){ $this->jaxl_get_auth_mech( $m , $j ); } );
-//TODO - in cli mode this wont get called - figure out cgi mode
-		$this->jaxl->addPlugin('jaxl_post_auth_failure', function( $p, $j ){ $this->jaxl_post_auth_failure( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $removed )
+		//register callback
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $removed )
                 {
 			//state: authenticated
 			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $removed )
 			{
 				//state: remove registration submitted
 				if( $payload['type'] === "error" )
-					$this->errors[] = "Error cancelling registration:\n\$payload = " . var_export( $payload, TRUE );
+					$this->errors[] = "Error removing registrat: " . 
+						"( code: {$payload['errorCode']}, type: {$payload['errorType']}, condition: {$payload['errorCondition']} )";
 				else if( $payload['type'] === "result" )
 					$removed = TRUE;
 				$this->stop();
@@ -84,7 +79,6 @@ class XMPPInBandRegistration extends XMPPJAXL
                 } );
 
 		//start connection
-		
 		$this->start();
 		return $removed;
 	}
@@ -99,18 +93,15 @@ class XMPPInBandRegistration extends XMPPJAXL
 		$changed = FALSE;
 
 		//register callbacks
-		$this->jaxl->addPlugin('jaxl_post_connect', function( $p, $j ){ $this->jaxl_post_connect( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_get_auth_mech', function( $m, $j ){ $this->jaxl_get_auth_mech( $m , $j ); } );
-//TODO - in cli mode this wont get called - figure out cgi mode
-		$this->jaxl->addPlugin('jaxl_post_auth_failure', function( $p, $j ){ $this->jaxl_post_auth_failure( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $newPass, & $changed )
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $newPass, & $changed )
                 {
 			//state: authenticated
 			$jaxl->JAXL0077( 'register', '', '', function( $payload, $jaxl ) use ( & $changed )
 			{
 				//state: change password submitted
 				if( $payload['type'] === "error" )
-					$this->errors[] = "Error changing password:\n\$payload = " . var_export( $payload, TRUE );
+					$this->errors[] = "Error changing password form: " . 
+						"( code: {$payload['errorCode']}, type: {$payload['errorType']}, condition: {$payload['errorCondition']} )";
 				else if( $payload['type'] === "result" )
 					$changed = TRUE;
 				$this->stop();
@@ -126,31 +117,31 @@ class XMPPInBandRegistration extends XMPPJAXL
 	public static function runTests()
 	{
 		echo "<pre>";
-		echo "REGISTER(test,test): ";
-		$xmppum = new XMPPInBandRegistration();
-		var_export( $xmppum->registerEntity("test","test") );
+		echo "REGISTER( test, test ): ";
+		$xmppibr = new XMPPInBandRegistration();
+		var_export( $xmppibr->registerEntity( "test", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-		echo "REGISTER(test,test): ";
-		var_export( $xmppum->registerEntity("test","test") );
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n\n";
+		echo "REGISTER( test, test ): ";
+		var_export( $xmppibr->registerEntity( "test", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-		echo "CHANGE PASSWORD(test,test,test2): ";
-		var_export( $xmppum->changePassword("test","test","test2") );
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n\n";
+		echo "CHANGE PASSWORD( test, test, test2 ): ";
+		var_export( $xmppibr->changePassword( "test", "test", "test2" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-		echo "CHANGE PASSWORD(test,test2,test): ";
-		var_export( $xmppum->changePassword("test","test2","test") );
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n\n";
+		echo "CHANGE PASSWORD( test, test2, test ): ";
+		var_export( $xmppibr->changePassword( "test", "test2", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-		echo "REMOVE(test,test): ";
-		var_export($xmppum->cancelRegisterEntity("test","test"));
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n\n";
+		echo "REMOVE( test, test ): ";
+		var_export( $xmppibr->cancelRegisterEntity( "test", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-		echo "REMOVE(test,test): ";
-		var_export($xmppum->cancelRegisterEntity("test","test"));
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n\n";
+		echo "REMOVE( test, test ): ";
+		var_export( $xmppibr->cancelRegisterEntity( "test", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n";
+		echo "LAST ERROR: " . $xmppibr->getErrors() . "\n";
 		echo "</pre>";
 	}
 }

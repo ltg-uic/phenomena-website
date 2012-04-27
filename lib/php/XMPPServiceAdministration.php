@@ -1,19 +1,17 @@
 <?php
 namespace PhenLib;
 
-//TODO - password minimum complexity
-
 class XMPPServiceAdministration extends XMPPJAXL
 {
 	//constructor
-	public function __construct( $xeps = array() )
+	public function __construct()
 	{
 		//XEP-0133: Service Administration
 		parent::__construct( array( "0133" ) );
 	}
 
 	//XEP-0133 add user
-	public function addUser( $user, $pass )
+	public function addUser( $user, $domain, $pass )
 	{
 		//re-init jaxl to register
 		$this->init();
@@ -21,51 +19,116 @@ class XMPPServiceAdministration extends XMPPJAXL
 		//local return var for callback
 		$added = FALSE;
 
-		//register callbacks
-		$this->jaxl->addPlugin('jaxl_post_connect', function( $p, $j ){ $this->jaxl_post_connect( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_get_auth_mech', function( $m, $j ){ $this->jaxl_get_auth_mech( $m , $j ); } );
-//TODO - in cli mode this wont get called - figure out cgi mode
-		$this->jaxl->addPlugin('jaxl_post_auth_failure', function( $p, $j ){ $this->jaxl_post_auth_failure( $p , $j ); } );
-		$this->jaxl->addPlugin('jaxl_post_auth', function( $payload, $jaxl ) use ( & $user, & $pass, & $added )
+		//register callback
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $user, & $domain, & $pass, & $added )
                 {
-//			var_dump( $payload );
-//			var_dump( $jaxl );
-//			$this->stop();
 			//state: authenticated
 			$userArr = array( "jid" => $user, "pass" => $pass );
-			$jaxl->JAXL0133( "addUser", $userArr, "climax-linux.datacenter.fredk.com", function( $payload, $jaxl ) use ( & $added )
+			$jaxl->JAXL0133( "addUser", $userArr, $domain, function( $payload, $jaxl ) use ( & $added )
 			{
-die( 'now' );
-				var_export( $payload );
-				var_export( $jaxl );
-				//state: remove registration submitted
-//				if( $payload['type'] === "error" )
-//					$this->errors[] = "Error cancelling registration:\n\$payload = " . var_export( $payload, TRUE );
-//				else if( $payload['type'] === "result" )
-//					$removed = TRUE;
+				//state: add user command executed
+				if( $payload['type'] === "result" && (string)$payload['xml']->command['status'] === "completed" )
+					$added = TRUE;
+				else
+					$this->errors[] = "Error adding user: {$payload['xml']->command->note}";
 				$this->stop();
 			} );
                 } );
 
 		//start connection
-		
 		$this->start();
 		return $added;
+	}
+
+	//XEP-0133 change user password
+	public function changeUserPassword( $user, $domain, $pass )
+	{
+		//re-init jaxl to register
+		$this->init();
+
+		//local return var for callback
+		$changed = FALSE;
+
+		//register callback
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $user, & $domain, & $pass, & $changed )
+                {
+			//state: authenticated
+			$userArr = array( "jid" => $user, "pass" => $pass );
+			$jaxl->JAXL0133( "changeUserPassword", $userArr, $domain, function( $payload, $jaxl ) use ( & $changed )
+			{
+				//state: add user command executed
+				if( $payload['type'] === "result" && (string)$payload['xml']->command['status'] === "completed" )
+					$changed = TRUE;
+				else
+					$this->errors[] = "Error changing user password: {$payload['xml']->command->note}";
+				$this->stop();
+			} );
+                } );
+
+		//start connection
+		$this->start();
+		return $changed;
+	}
+
+	//XEP-0133 delete user
+	public function deleteUser( $user, $domain, $pass )
+	{
+		//re-init jaxl to register
+		$this->init();
+
+		//local return var for callback
+		$deleted = FALSE;
+
+		//register callback
+		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $user, & $domain, & $pass, & $deleted )
+                {
+			//state: authenticated
+			$userArr = array( "jid" => $user, "pass" => $pass );
+			$jaxl->JAXL0133( "deleteUser", $userArr, $domain, function( $payload, $jaxl ) use ( & $deleted )
+			{
+				//state: add user command executed
+				if( $payload['type'] === "result" && (string)$payload['xml']->command['status'] === "completed" )
+					$deleted = TRUE;
+				else
+					$this->errors[] = "Error changing user password: {$payload['xml']->command->note}";
+				$this->stop();
+			} );
+                } );
+
+		//start connection
+		$this->start();
+		return $deleted;
 	}
 
 	//run test sequence
 	public static function runTests()
 	{
 		echo "<pre>";
-		echo "ADDUSER(test,test): ";
-		$xmppum = new XMPPServiceAdministration();
-		var_export( $xmppum->addUser("test","test") );
+		$xmppsa = new XMPPServiceAdministration();
+		echo "ADDUSER( test, test ): ";
+		var_export( $xmppsa->addUser( "test", "climax-linux.datacenter.fredk.com", "test" ) );
 		echo "\n";
-		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n\n";
-//		echo "ADDUSER(test,test): ";
-//		var_export( $xmppum->addUser("test","test") );
-//		echo "\n";
-//		echo "LAST ERROR:\n" . $xmppum->getErrors() . "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n\n";
+		echo "ADDUSER( test, test ): ";
+		var_export( $xmppsa->addUser( "test", "climax-linux.datacenter.fredk.com", "test" ) );
+		echo "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n\n";
+		echo "CHANGEUSERPASSWORD( test, test2 ): ";
+		var_export( $xmppsa->changeUserPassword( "test", "climax-linux.datacenter.fredk.com", "test2" ) );
+		echo "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n\n";
+		echo "CHANGEUSERPASSWORD( test, test ): ";
+		var_export( $xmppsa->changeUserPassword( "test", "climax-linux.datacenter.fredk.com", "test" ) );
+		echo "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n\n";
+		echo "DELETEUSER( test, test ): ";
+		var_export( $xmppsa->deleteUser( "test", "climax-linux.datacenter.fredk.com", "test" ) );
+		echo "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n\n";
+		echo "DELETEUSER( test, test ): ";
+		var_export( $xmppsa->deleteUser( "test", "climax-linux.datacenter.fredk.com", "test" ) );
+		echo "\n";
+		echo "LAST ERROR: " . $xmppsa->getErrors() . "\n";
 		echo "</pre>";
 	}
 }

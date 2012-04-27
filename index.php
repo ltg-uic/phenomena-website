@@ -94,5 +94,4 @@ Template::linkCSS( "lib/css/phenomena.css" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
 Template::display();
-XMPPServiceAdministration::runTests();
 ?>
