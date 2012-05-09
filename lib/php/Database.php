@@ -8,6 +8,7 @@ class Database
 	private function __construct()
 	{
 		//don't instantiate
+//TODO - singleton
 	}
 
 	public static function connect()
@@ -15,9 +16,25 @@ class Database
 		if( self::$db === NULL )
 		{
 			self::$db = \mysqli_init();
-			self::$db->options(MYSQLI_OPT_INT_AND_FLOAT_NATIVE, 1);
-			self::$db->real_connect( "p:{$GLOBALS['dbHost']}", $GLOBALS['dbUser'], $GLOBALS['dbPass'], $GLOBALS['dbName'] );
-			self::$db->autocommit( TRUE );
+			try
+			{
+				if( self::$db->options(MYSQLI_OPT_INT_AND_FLOAT_NATIVE, 1) === FALSE )
+					throw new \Exception( "Database: mysqli_options failed." );
+				if( @self::$db->real_connect( "p:{$GLOBALS['dbHost']}", $GLOBALS['dbUser'], $GLOBALS['dbPass'], $GLOBALS['dbName'] ) === FALSE )
+				{
+					$hint = "";
+					if( self::$db->connect_errno === 2002 )
+						$hint = " \nHint: Try restarting apache.";
+					throw new \Exception( "Database: mysqli_real_connect failed. Mysqli connect error: " . self::$db->connect_error . $hint );
+				}
+				if( self::$db->autocommit( TRUE ) === FALSE )
+					throw new \Exception( "Database: mysqli_autocommit failed." );
+			}
+			catch( \Exception $e )
+			{
+				self::$db = NULL;
+				throw $e;
+			}
 		}
 		return self::$db;
 	}
@@ -26,8 +43,10 @@ class Database
 	{
 		if( self::$db !== NULL )
 		{
-			self::$db->close();
+			$failed = ! self::$db->close();
 			self::$db = NULL;
+			if( $failed )
+				throw new \Exception( "Database: mysqli_close failed." );
 		}
 	}
 }

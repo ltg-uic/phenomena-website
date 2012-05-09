@@ -152,7 +152,7 @@ diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0004.php ../../lib/
              return $result;
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0133.php ../../lib/php/jaxl/xep/jaxl.0133.php
 --- ../abhinavsingh-JAXL-5829c3b/xep/jaxl.0133.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../../lib/php/jaxl/xep/jaxl.0133.php	2012-04-26 20:40:46.843220495 -0500
++++ ../../lib/php/jaxl/xep/jaxl.0133.php	2012-05-09 16:55:04.047228782 -0500
 @@ -61,26 +61,33 @@
          }
          
@@ -267,7 +267,7 @@ diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.class.php ../../li
             
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../../lib/php/jaxl/xmpp/xmpp.get.php
 --- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../../lib/php/jaxl/xmpp/xmpp.get.php	2012-04-12 14:59:40.572560233 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.get.php	2012-05-09 16:55:37.986196645 -0500
 @@ -145,6 +145,11 @@
          }
          
@@ -282,7 +282,7 @@ diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.get.php ../../lib/
                  else XMPPSend::startStream($jaxl);
 diff -ru -x .gitignore ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php ../../lib/php/jaxl/xmpp/xmpp.send.php
 --- ../abhinavsingh-JAXL-5829c3b/xmpp/xmpp.send.php	2011-05-01 07:26:24.000000000 -0500
-+++ ../../lib/php/jaxl/xmpp/xmpp.send.php	2012-04-26 20:40:52.044357292 -0500
++++ ../../lib/php/jaxl/xmpp/xmpp.send.php	2012-05-09 16:55:55.729363257 -0500
 @@ -86,7 +86,10 @@
                  case 'CRAM-MD5':
                      break;

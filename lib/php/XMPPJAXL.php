@@ -2,45 +2,109 @@
 namespace PhenLib;
 
 //TODO: Change to batch processing of commands with one connection
-abstract class XMPPJAXL
+class XMPPJAXL
 {
-	protected $jaxl;
-	private $xeps;
+	private $jaxl;
 	protected $errors;
 	private $stopped;
+	private $commands;
 
 	//constructor
-	public function __construct( $xeps = array() )
+	public function __construct()
 	{
 		//init instance, init errors array
 		$this->jaxl = NULL;
 		$this->errors = array();
 		$this->stopped = TRUE;
+		$this->commands = new \SplQueue();
+	}
 
-		if( ! is_array( $xeps ) )
-			throw new \Exception( "Constructor expects array of xeps" );
-		$this->xeps = $xeps;
+	//TODO - for now, this only works with post_auth hook, later might want post_connect?
+	final public function registerCommand( $xeps, \Closure $callback, $user = NULL, $pass = NULL )
+	{
+		//if no user/pass sent, use from config
+		$user = ( $user !== NULL ) ? $user : $GLOBALS['xmppUser'];
+                $pass = ( $pass !== NULL ) ? $pass : $GLOBALS['xmppPass'];
+
+		//batched commands are stored in a queue of queues, stored in like ( user, pass ) groups
+		$cq = ( $this->commands->isEmpty() ) ? NULL : $this->commands->top();
+
+		//if we have no main queue, or this command has different user, pass than the last, add new main queue
+		if( $cq === NULL || ( $cq !== NULL && ( $cq->user !== $user || $cq->pass !== $pass ) ) )
+			$this->commands->enqueue( $cq = (object) array( "xeps" => array(), "commands" => new \SplQueue(), "user" => $user, "pass" => $pass ) );
+
+		//update xep map
+		foreach( $xeps as $xep )
+			$cq->xeps[$xep] = TRUE;
+
+		//otherwise, just add callback to the current command queue
+		$cq->commands->enqueue( $callback );
+	}
+
+	final private function processCommand()
+	{
+		try
+		{
+			//get command off current command subqueue
+			$command = $this->commands->bottom()->commands->dequeue();
+		}
+		catch( \Exception $e )
+		{
+			//if empty, remove command queue, pass back to execute
+			$this->commands->dequeue();
+			$this->execute();
+			return;
+		}
+
+		$command( $this->jaxl, function( & $errors )
+		{
+			foreach( $errors as $error )
+				$this->errors[] = $error;
+			$this->processCommand();
+		} );
+	}
+
+	final public function execute()
+	{
+		try
+		{
+			$cq = $this->commands->bottom();
+		}
+		catch( \Exception $e )
+		{
+			//finished if no more
+			$this->stop();
+			return;
+		}
+
+		$this->init( $cq->user, $cq->pass );
+
+		//require xeps
+		foreach( $cq->xeps as $xep => $_ )
+			$this->jaxl->requires( "JAXL{$xep}" );
+
+		//start execution,
+		//once we hit the callback requested 
+		$this->jaxl->addPlugin( 'jaxl_post_auth', function( $_, \JAXL $jaxl ) { $this->processCommand(); } );
+		$this->start();
 	}
 
 	//setup xmpp management connection
-	final protected function init( $user = NULL, $pass = NULL )
+	final private function init( $user = NULL, $pass = NULL )
 	{
 		//stop if not stopped
 		$this->stop();
 
 		//init jaxl
 		$this->jaxl = new \JAXL( array(
-			'user'    => ( $user !== NULL ) ? $user : $GLOBALS['xmppUser'],
-			'pass'    => ( $pass !== NULL ) ? $pass : $GLOBALS['xmppPass'],
-			'domain'  => $GLOBALS['xmppDomain'],
-			'logPath' => $GLOBALS['xmppLogPath'],
-			'mode'    => 'cgi-stateless'
-			,'logLevel'=>100000
+			'user'		=> ( $user !== NULL ) ? $user : $GLOBALS['xmppUser'],
+			'pass'		=> ( $pass !== NULL ) ? $pass : $GLOBALS['xmppPass'],
+			'domain'	=> $GLOBALS['xmppDomain'],
+			'logPath'	=> $GLOBALS['xmppLogPath'],
+			'mode'		=> 'cgi-stateless',
+			'sendRate'	=> PHP_INT_MAX
+			,'logLevel'	=> 100000
 			) );
-
-		//require xeps
-		for( $x = 0; $x < sizeof( $this->xeps ); $x++ )
-			$this->jaxl->requires( "JAXL{$this->xeps[$x]}" );
 
 		//hook in callbacks
 		//(add callbacks using anonymous functions so we can keep them private)
@@ -50,7 +114,7 @@ abstract class XMPPJAXL
 	}
 
 	//start transaction
-	final protected function start()
+	final private function start()
 	{
 		//flush output before starting
 		ob_flush(); flush();
@@ -81,7 +145,7 @@ abstract class XMPPJAXL
 	}
 
 	//stop transaction
-	final protected function stop()
+	final private function stop()
 	{
 		if( $this->stopped === FALSE )
 		{

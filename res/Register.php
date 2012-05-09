@@ -24,6 +24,7 @@ EOHTML
 	public function execute()
 	{
 //TODO - password minimum complexity
+//TODO - validation
 		$db = \PhenLib\Database::connect();
 
 		$sql = "INSERT INTO `phen_website`.`users`
@@ -73,16 +74,19 @@ EOHTML
 
 		$res = $db->store_result();
 
-		$xmppsa = new \PhenLib\XMPPServiceAdministration();
+		$xmpp = new \PhenLib\XMPPJAXL();
 		while( $row = $res->fetch_assoc() )
 			for( $x=0; $x<$windows; $x++ )
 			{
 				$xmpp_user = "{$row['phenomena_name']}_{$id}_{$x}";
-				echo "Creating XMPP User: {$xmpp_user}<br />";
-				if( $xmppsa->addUser( $xmpp_user, $GLOBALS['xmppDomain'], \PhenLib\Password::generateRandom() ) === FALSE )
-					echo "Error creating user: " . $xmppsa->getErrors() . "<br />";
+				\PhenLib\XMPPServiceAdministration::addUser( $xmpp, $xmpp_user, $GLOBALS['xmppDomain'], \PhenLib\Password::generateRandom(), $added[$xmpp_user] );
 			}
+		$xmpp->execute();
+		echo "users added:<br />\n";
+		var_export( $added );
+		echo $xmpp->getErrors();
 		$res->free();
+		exit();
 	}
 }
 ?>

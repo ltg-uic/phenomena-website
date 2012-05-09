@@ -1,43 +1,30 @@
 <?php
 namespace PhenLib;
 
-class XMPPServiceAdministration extends XMPPJAXL
+class XMPPServiceAdministration
 {
-	//constructor
-	public function __construct()
-	{
-		//XEP-0133: Service Administration
-		parent::__construct( array( "0133" ) );
-	}
-
 	//XEP-0133 add user
-	public function addUser( $user, $domain, $pass )
+	static public function addUser( XMPPJAXL $xmppjaxl, $user, $domain, $pass, & $added ) 
 	{
-		//re-init jaxl to register
-		$this->init();
-
-		//local return var for callback
+		//referenced retrun var for callback
 		$added = FALSE;
 
 		//register callback
-		$this->jaxl->addPlugin('jaxl_post_auth', function( $_, $jaxl ) use ( & $user, & $domain, & $pass, & $added )
+		$xmppjaxl->registerCommand( array( "0133" ), function( $jaxl, $callback ) use ( & $user, & $domain, & $pass, & $added )
                 {
 			//state: authenticated
 			$userArr = array( "jid" => $user, "pass" => $pass );
-			$jaxl->JAXL0133( "addUser", $userArr, $domain, function( $payload, $jaxl ) use ( & $added )
+			$jaxl->JAXL0133( "addUser", $userArr, $domain, function( $payload, $jaxl ) use ( $callback, & $added )
 			{
 				//state: add user command executed
+				$errors = array();
 				if( $payload['type'] === "result" && (string)$payload['xml']->command['status'] === "completed" )
 					$added = TRUE;
 				else
-					$this->errors[] = "Error adding user: {$payload['xml']->command->note}";
-				$this->stop();
+					$errors[] = "Error adding user: {$payload['xml']->command->note}<br />\n";
+				$callback( $errors );
 			} );
                 } );
-
-		//start connection
-		$this->start();
-		return $added;
 	}
 
 	//XEP-0133 change user password
