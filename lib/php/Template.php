@@ -126,9 +126,12 @@ abstract class Template
 			$input->setAttribute( "name", "id" );
 			$input->setAttribute( "value", $id );
 
+			$fieldset = self::$doc->createElement( "fieldset" );
+			$fieldset->appendChild( $input );
+
 			$forms = $xp->query( "//div[@id='{$id}']/form" );
 			foreach( $forms as $form )
-				$form->appendChild( $input );
+				$form->appendChild( $fieldset );
 		}
 		
 

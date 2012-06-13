@@ -25,6 +25,7 @@ class Controller
 		
 		//load resource
 		$name = $uq->dequeue();
+//TODO - should be better logic here, not just assume uppercase name
 		$class = "\\Phen\\".ucfirst($name);
 		//TODO - detect when this should thow a 404 error (between autoload/controller)
 		$res = new $class( $uq );
@@ -38,8 +39,11 @@ class Controller
 		if( $res instanceof Action )
 		{
 			$res->execute();
-			header( "Location: {$res->getRedirect()}" );
-			exit();
+			if( ( $dest = $res->getRedirect() ) !== NULL )
+			{
+				header( "Location: {$dest}" );
+				exit();
+			}
 		}
 
 		$this->resource = $res;
