@@ -90,7 +90,12 @@ $cont = new Controller( $uq );
 $res = $cont->getResource( $uq );
 
 //generate output
-Template::linkCSS( "lib/css/phenomena.css" );
+//Template::linkCSS( "lib/css/phenomena.css" );
+Template::appendDOM( "head", Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
+Template::linkCSS( "lib/css/jquery/jquery.mobile.theme.android-1.1.0.css" );
+Template::linkCSS( "lib/css/jquery/jquery.mobile.structure-1.1.0.css" );
+Template::scriptExternal( "lib/js/jquery/jquery-1.7.2.js" );
+Template::scriptExternal( "lib/js/jquery/jquery.mobile-1.1.0.js" );
 Template::integrate( "body", $res );
 Template::integrate( "body", new \Phen\Debug );
 Template::display();

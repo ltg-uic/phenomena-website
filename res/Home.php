@@ -10,6 +10,17 @@ class Home extends \PhenLib\Page
 		$rootDoc = \PhenLib\Template::getDOC();
 		$root = $this->root;
 
+//TODO - temp jquery stuff, need to refactor this into a better place, probably page class
+$root->setAttribute( "data-role", "page" );
+$root->setAttribute( "data-theme", "a" );
+
+$contentDiv = $rootDoc->createElement( "div" );
+$contentDiv->setAttribute( "data-role", "content" );
+
+$root->appendChild( $contentDiv );
+$root = $contentDiv;
+//END TODO
+
 		$img = $rootDoc->createElement( "img" );
 		$img->setAttribute( "src", "lib/media/waitress.png" );
 		$img->setAttribute( "style", "float: left;" );

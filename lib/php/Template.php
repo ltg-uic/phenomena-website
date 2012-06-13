@@ -86,7 +86,7 @@ abstract class Template
 		if( ! $obj instanceof Displayable )
 			throw new \Exception( "Template cannot integrate non-pluggable object" );
 
-		self::$hooks[$hook]->appendChild( $obj->getDOC() );
+		self::appendDOM( $hook, $obj->getDOC() );
 	
 		//TODO - LOGIC FOR ADDING NEW HOOKS TO THE TEMPLATE FROM A DISPLAYABLE
 //		if( is_array( ( $h = $obj->getHooks() ) ) )
