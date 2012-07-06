@@ -7,149 +7,237 @@ class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Acti
 	{
 		parent::__construct();
 
-		$html = "";
+		$html = <<<EOHTML
+<!-- -->
+<script type="text/javascript">
 
-		if( isset( $_SESSION[$this->id]['loginValid'] ) )
+triggerDialogFeedback = function( msg ) 
+{
+	var dialogFeedback = $( '#{$this->id}_dialog-feedback' )
+	dialogFeedback.empty();
+	dialogFeedback.append( $( '<span></span>' ).text( msg ) );
+	dialogFeedback.popup( "open" );
+}
+
+
+$(document).on('pageinit', function() 
+{
+	var loginForm = $( "#{$this->id}_action_login" );
+	loginForm.on('submit', function( e ) 
+	{
+		//prevent form submission
+		console.log("prevent default");
+		e.preventDefault();
+		e.stopPropagation();
+		var username = $( '#{$this->id}_action_login input[name="username"]' ).prop( "value" );
+		var password = $( '#{$this->id}_action_login input[name="password"]' ).prop( "value" );
+		//send request
+		$.ajax(
 		{
-			if( $_SESSION[$this->id]['loginValid'] )
-				$html .= "<p><b>LOGIN VALID</b></p>";
-			else
-				$html .= "<p><b>LOGIN INVALID</b></p>";
-			unset( $_SESSION[$this->id]['loginValid'] );
-		}
+			url: "LoginRecoverRegister",
+			type: "POST",
+			data: {'action_login': 'Login', 'username': username, 'password': password},
+			datatype: "json",
+			complete: function( jqXHR, status )
+				{ 
+					if( jqXHR.status === 200 ) 
+					{	
+						console.log(jqXHR);
+						if( jqXHR.responseText === "true" )
+						{
+							//console.log("Login Successful");
+							$.mobile.changePage( "control-panel/" );
+						}
+						else
+						{
+							triggerDialogFeedback( "Login Error, Please Verify Your Username and Password" );
+						}
+					}
+				}
+		} ).fail( function()
+			{
+			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
+			//console.log( 'fail' );
+		});
+	});
 
-		$html .= <<<EOHTML
-<form action="LoginRecoverRegister" method="post">
+
+	var registerForm = $( "#{$this->id}_action_register" );
+	registerForm.on('submit', function( e ) 
+	{
+		//prevent form submission
+		e.preventDefault();
+		e.stopPropagation();
+		var username = $( '#{$this->id}_action_register input[name="username"]' ).prop( "value" );
+		var email = $( '#{$this->id}_action_register input[name="email"]' ).prop( "value" );
+		var password = $( '#{$this->id}_action_register input[name="password"]' ).prop( "value" );
+		//send request
+		$.ajax(
+		{
+			url: "LoginRecoverRegister",
+			type: "POST",
+			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password},
+			datatype: "json",
+			complete: function( jqXHR, status )
+				{ 
+					if( jqXHR.status === 200 ) 
+					{	
+						console.log(jqXHR);
+						if( jqXHR.responseText === "true" )
+							triggerDialogFeedback("Your Registration Was Successful, Please Log In");
+						else
+							triggerDialogFeedback( "Registration Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" );
+					}
+				}
+		} ).fail( function()
+			{
+			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
+			//console.log( 'fail' );
+		});
+	});
+
+
+	var recoverForm = $( "#{$this->id}_action_recover" );
+	recoverForm.on('submit', function( e ) 
+	{
+		//prevent form submission
+		e.preventDefault();
+		e.stopPropagation();
+		var email = $( '#{$this->id}_action_recover input[name="email"]' ).prop( "value" );
+		var password = $( '#{$this->id}_action_recover input[name="password"]' ).prop( "value" );
+		var cpassword = $( '#{$this->id}_action_recover input[name="cpassword"]' ).prop( "value" );
+		if( password !== cpassword ) {
+			triggerDialogFeedback( "Passwords Do Not Match" );
+			return;
+		}
+		//send request
+		$.ajax(
+		{
+			url: "LoginRecoverRegister",
+			type: "POST",
+			data: {'action_recover': 'Recover', 'email': email, 'password': password },
+			datatype: "json",
+			complete: function( jqXHR, status )
+				{ 
+					if( jqXHR.status === 200 ) 
+					{	
+						console.log(jqXHR);
+						if( jqXHR.responseText === "true" )
+							triggerDialogFeedback("Password Recovery Email Sent, Please Check Your Email");
+						else
+							triggerDialogFeedback( "Password Recovery Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" );
+					}
+				}
+		} ).fail( function()
+			{
+			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
+		
+		});
+	});
+
+
+});
+</script>
+<form id="{$this->id}_action_login" action="LoginRecoverRegister" method="post">
 	<div>
-		Username: <input type="text" name="username" /><br />
-		Password: <input type="password" name="password" /><br />
-		<input type="submit" name="action_login" value="Login" /><br />
-		<input type="submit" name="action_recover" value="Forgot?" /><br />
-		<input type="submit" name="action_register" value="New?" />
+		<div class="ui-grid-a">
+			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-username" style="margin: 15px 0px;">Username</label></div>
+			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-username" type="text" name="username" required="true"/></div>
+			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-password" style="margin: 15px 0px;">Password</label></div>
+			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-password" type="password" name="password" required="true" /></div>
+		</div>
+		<input type="submit" name="action_login" value="Login" />
+		<a href="#{$this->id}_dialog-recover" data-role="button" data-rel="popup" data-transition="slideup">Forgot?</a>
+		<a href="#{$this->id}_dialog-register" data-role="button" data-rel="popup" data-transition="slideup">New?</a>
 	</div>
 </form>
+
+<div data-role="popup" id="{$this->id}_dialog-recover" class="ui-content">
+	<h2>Recover</h2>
+	<form id="{$this->id}_action_recover" action="LoginRecoverRegister" method="post">
+		<div>
+			Email: <input type="text" name="email" /><br />
+			New Password: <input type="password" name="password" /><br />
+			Confirm New Password: <input type="password" name="cpassword" /><br />
+			<input type="submit" name="action_recover" value="Recover" />
+		</div>
+	</form>
+</div>
+
+<div data-role="popup" id="{$this->id}_dialog-register" class="ui-content">
+	<h2>Register</h2>
+	<form id="{$this->id}_action_register" action="LoginRecoverRegister" method="post">
+		<div>
+			Username: <input type="text" name="username" /><br />
+			Email: <input type="text" name="email" /><br />
+			Password: <input type="password" name="password" /><br />
+			<input type="submit" name="action_register" value="Register" />
+		</div>
+	</form>
+</div>
+
+<div data-role="popup" id="{$this->id}_dialog-feedback" class="ui-content">
+	
+</div>
 EOHTML;
 		$this->root->appendChild( \PhenLib\Template::HTMLtoDOM( $html ) );
 	}
 
 	public function execute()
 	{
-//TODO temp nothing
-		return ;
-
-		\PhenLib\Session::start();
-		$db = \PhenLib\Database::connect();
-
-		$sql = "SELECT `user_password`
-			FROM `users`
-			WHERE `user_login` = ?";
-
-		$stmt = $db->prepare( $sql );
-		$stmt->bind_param( "s", $_POST['username'] );
-		$stmt->execute();
-		$stmt->bind_result( $stored_hash );
-		$stmt->fetch();
-		$stmt->close();
-
-		$_SESSION[$_POST['id']]['loginValid'] = \PhenLib\HashSSHA512::verify( $_POST['password'], $stored_hash );
-	}
-
-	public function getRedirect()
-	{
-		return NULL;
-		return \PhenLib\Controller::getLastPage();
-	}
-}
-?>
-<?php
-namespace Phen;
-
-class Register extends \PhenLib\Displayable implements \PhenLib\Action
-{
-	public function __construct()
-	{
-		parent::__construct();
-
-		$this->root->appendChild( \PhenLib\Template::HTMLtoDOM( <<<EOHTML
-<h2>Register</h2>
-<form action="register" method="post">
-	<div>
-		Username: <input type="text" name="username" /><br />
-		Email: <input type="text" name="email" /><br />
-		Password: <input type="password" name="password" /><br />
-		<input type="submit" name="Submit" />
-	</div>
-</form>
-EOHTML
-) );
-	}
-
-	public function execute()
-	{
-//TODO - password minimum complexity
-//TODO - validation
-		$db = \PhenLib\Database::connect();
-
-		$sql = "INSERT INTO `phen_website`.`users`
-			(
-				`user_id`,
-				`user_login`,
-				`user_password`,
-				`user_email`
-			)
-			VALUES
-			(
-				NULL, ?, ?, ?
-			)
-			ON DUPLICATE KEY UPDATE
-			`user_password` = ?, `user_email` = ?";
-
-		$stmt = $db->prepare( $sql );
-
-		$pass = \PhenLib\HashSSHA512::hash( $_POST['password'] );
-		$stmt->bind_param( "sssss", $_POST['username'], $pass, $_POST['email'], $pass, $_POST['email'] );
-
-		$stmt->execute();
-
-		$id = $stmt->insert_id;
-		
-		$stmt->close();
-
-		$this->setupUser( $id ); 
-	}
-
-	public function getRedirect()
-	{
-		return \PhenLib\Controller::getLastPage();
-	}
-
-
-	private function setupUser( $id )
-	{
-		$windows = 4;
-
-		echo "Setting up user id: {$id}<br />";
-		//get phenomenas from pod server, update db
-		//right now we just get from db until a query to the server works
-		$db = \PhenLib\Database::connect();
-
-		$db->real_query( "SELECT * FROM `phenomenas`" );
-
-		$res = $db->store_result();
-
-		$xmpp = new \PhenLib\XMPPJAXL();
-		while( $row = $res->fetch_assoc() )
-			for( $x=0; $x<$windows; $x++ )
+		if( isset( $_POST['action_login'] ) )
+		{
+			if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && \PhenLib\Authentication::doLogin( $_POST['username'], $_POST['password'] ) )
 			{
-				$xmpp_user = "{$row['phenomena_name']}_{$id}_{$x}";
-				\PhenLib\XMPPServiceAdministration::addUser( $xmpp, $xmpp_user, $GLOBALS['xmppDomain'], \PhenLib\Password::generateRandom(), $added[$xmpp_user] );
+				//json success and exit()
+				\PhenLib\JSON::encode_send( TRUE );
+				exit();
 			}
-		$xmpp->execute();
-		echo "users added:<br />\n";
-		var_export( $added );
-		echo $xmpp->getErrors();
-		$res->free();
-		exit();
+			else
+			{
+				//json fail and exit()
+				\PhenLib\JSON::encode_send( FALSE );
+				exit();
+			}
+		}
+		else if( isset( $_POST['action_recover'] ) )
+		{
+			if( isset( $_POST['email'] ) && isset( $_POST['password'] ) && \PhenLib\User::recoverInitialize( $_POST['email'], $_POST['password'] ) )
+			{	
+				//json success and exit()
+				\PhenLib\JSON::encode_send( TRUE );
+				exit();
+			}
+			else
+			{	
+				//json fail and exit()
+				\PhenLib\JSON::encode_send( FALSE );
+				exit();
+			}		
+		}
+		else if( isset( $_POST['action_register'] ) )
+		{
+			if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && isset( $_POST['email'] ) && \PhenLib\User::create( $_POST['username'], $_POST['password'], $_POST['email'] ) )
+			{
+				//json success and exit()
+				\PhenLib\JSON::encode_send( TRUE );
+				exit();
+			}
+			else
+			{
+				//json fail and exit()
+				\PhenLib\JSON::encode_send( FALSE );
+				exit();
+			}
+		}
+		else
+			throw new \Exception( "missing or invalid action" );
+	}
+
+	public function getRedirect()
+	{
+		//All actions handled by JSON
+		return NULL;
 	}
 }
 ?>

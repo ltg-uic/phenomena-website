@@ -117,7 +117,8 @@ class XMPPJAXL
 	final private function start()
 	{
 		//flush output before starting
-		ob_flush(); flush();
+//TODO - set debug flag and only do this when in debug
+//		ob_flush();flush();
 
 		//reset errors array
 		$this->errors = array();
@@ -141,7 +142,8 @@ class XMPPJAXL
 		$this->stop();
 
 		//flush output once finished
-		ob_flush(); flush();
+//TODO - set debug flag and only do this when in debug
+//		ob_flush();flush();
 	}
 
 	//stop transaction

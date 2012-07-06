@@ -85,18 +85,27 @@ $uri = ( isset( $_GET['uri'] ) ) ? $_GET['uri'] : "home";
 $uri = ( $uri !== "" ) ? $uri : "home";
 $uq = new URIQueue( $uri );
 
-//load controller
-$cont = new Controller( $uq );
-$res = $cont->getResource( $uq );
+//init page controller
+PageController::init( $uq );
+
+//TODO - SOMEWHERE IMPLEMENT ACCESS RULES BASED ON AUTH
 
 //generate output
-//Template::linkCSS( "lib/css/phenomena.css" );
+Template::setBaseURL( PageController::getBaseURL() );
+Template::linkCSS( "lib/css/phenomena.css" );
 Template::appendDOM( "head", Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
 Template::linkCSS( "lib/css/jquery/jquery.mobile.theme.android-1.1.0.css" );
-Template::linkCSS( "lib/css/jquery/jquery.mobile.structure-1.1.0.css" );
+Template::linkCSS( "lib/css/jquery/jquery.mobile.structure.css" );
 Template::scriptExternal( "lib/js/jquery/jquery-1.7.2.js" );
-Template::scriptExternal( "lib/js/jquery/jquery.mobile-1.1.0.js" );
-Template::integrate( "body", $res );
-Template::integrate( "body", new \Phen\Debug );
+Template::scriptExternal( "lib/js/jquery/jquery.mobile.js" );
+if( stripos( $uri, "home" ) !== 0 )
+{
+	Template::appendDom( "header", Template::HTMLtoDOM( "<h1>".PageController::getRootResource()->getTitle()."</h1>" ) );
+	Template::appendDom( "body", Template::HTMLtoDOM( <<<EOHTML
+		<div style="float: right;">Login Status/Logout</div>
+EOHTML
+		) );
+}
+Template::integrate( "body", PageController::getRootResource() );
 Template::display();
 ?>

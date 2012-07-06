@@ -10,20 +10,10 @@ class Home extends \PhenLib\Page
 		$rootDoc = \PhenLib\Template::getDOC();
 		$root = $this->root;
 
-//TODO - temp jquery stuff, need to refactor this into a better place, probably page class
-$root->setAttribute( "data-role", "page" );
-$root->setAttribute( "data-theme", "a" );
-
-$contentDiv = $rootDoc->createElement( "div" );
-$contentDiv->setAttribute( "data-role", "content" );
-
-$root->appendChild( $contentDiv );
-$root = $contentDiv;
-//END TODO
-
 		$img = $rootDoc->createElement( "img" );
-		$img->setAttribute( "src", "lib/media/waitress.png" );
-		$img->setAttribute( "style", "float: left;" );
+		$img->setAttribute( "alt", "The Phenomena Server" );
+		$img->setAttribute( "src", "lib/media/server.svg" );
+		$img->setAttribute( "style", "float: left; width: 286px; height: 214px; background-color: #5B5B5B; border: solid 1px #CCCCCC; margin: 5px;" );
 		$root->appendChild( $img );
 
 		$h1 = $rootDoc->createElement( "h1" );
@@ -39,6 +29,26 @@ $root = $contentDiv;
 		$root->appendChild( $div );
 
 		$root->appendChild( (new LoginRecoverRegister)->getDOC() );
+		$root->lastChild->setAttribute( "style", "float: left;" );
+
+		$div = $rootDoc->createElement( "div" );
+		$div->appendChild( $rootDoc->createTextNode(
+			"This site is based upon work supported by the National Science Foundation " .
+			"underrant Nos. DRL -0735569, IIS-1065275, and IIS-1124495."
+			) );
+		$root->appendChild( $div );
+
+		$div = $rootDoc->createElement( "div" );
+		$div->appendChild( $rootDoc->createTextNode(
+			"Copyright © 20111\n" .
+			"The Board of Trustees of the University of Illinois"
+			) );
+		$root->appendChild( $div );
+
+		$div = $rootDoc->createElement( "div" );
+		$div->setAttribute( "style", "clear: both;" );
+		$root->appendChild( $div );
+
 	}
 
 	public function getTitle()

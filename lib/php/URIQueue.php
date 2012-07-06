@@ -12,7 +12,6 @@ class URIQueue extends \SplQueue
 		
 		for( $x=0; $x<sizeof($uri); $x++ )
 			$this->enqueue( $uri[$x] );
-
 	}
 }
 ?>

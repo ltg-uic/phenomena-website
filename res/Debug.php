@@ -10,9 +10,11 @@ class Debug extends \PhenLib\Displayable
 		$get = var_export( $_GET, true );
 		$post = var_export( $_POST, true );
 		$session = ( isset( $_SESSION ) ) ? var_export( $_SESSION, true ) : "";
+		$relrootpath = \PhenLib\PageController::getRelativeRootPath();
+		$server = htmlentities( var_export( $_SERVER, true ) );
 		$html = <<<EOHTML
 <!-- DEBUG -->
-<div style="font-family: monospace; white-space: pre; font-size: 8pt; border: solid 1px black; max-width: 500px; padding: 5px;">DEBUG:
+<div style="font-family: monospace; white-space: pre; font-size: 8pt;">DEBUG:
 
 GET:
 {$get}
@@ -22,6 +24,12 @@ POST:
 
 SESSION:
 {$session}
+
+RELATIVE ROOT PATH:
+{$relrootpath}
+
+SERVER:
+{$server}
 </div>
 EOHTML;
 

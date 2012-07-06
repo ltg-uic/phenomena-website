@@ -16,9 +16,8 @@ abstract class Template
 		self::$init = TRUE;
 
 		$di = new \DOMImplementation();
-		$doc = self::$doc = $di->createDocument( NULL, "html", $di->createDocumentType(
-			"html", "-//W3C//DTD XHTML 1.0 Strict//EN", "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd" ) );
-		$doc->xmlVersion = "1.0";
+		$doc = self::$doc = $di->createDocument( "http://www.w3.org/1999/xhtml", "html", $di->createDocumentType(
+			"html", "", "" ) );
 		$doc->encoding = "utf-8";
 		$doc->formatOutput = TRUE;
 
@@ -40,9 +39,24 @@ abstract class Template
 		$body = $doc->createElement( "body" );
 		$html->appendChild( $body );
 
+//TODO - this should be done via a function call to template, here for now
+$pageDiv = $doc->createElement( "div" );
+$pageDiv->setAttribute( "data-role", "page" );
+$pageDiv->setAttribute( "data-theme", "a" );
+$body->appendChild( $pageDiv );
+
+$headerDiv = $doc->createElement( "div" );
+$headerDiv->setAttribute( "data-role", "header" );
+$pageDiv->appendChild( $headerDiv );
+
+$contentDiv = $doc->createElement( "div" );
+$contentDiv->setAttribute( "data-role", "content" );
+$pageDiv->appendChild( $contentDiv );
+
 		self::$hooks = array(
 			"head" => $head,
-			"body" => $body
+			"header" => $headerDiv,
+			"body" => $contentDiv
 		);
 	}
 
@@ -51,6 +65,14 @@ abstract class Template
 		self::init();
 
 		return self::$doc;
+	}
+
+	static public function setBaseURL( $baseURL )
+	{
+//TODO - shouldnt be set multiple times - if used persist and reuse base obj, just reset attrib
+		$base = self::$doc->createElement( "base" );
+		$base->setAttribute( "href", $baseURL );
+		self::$hooks['head']->appendChild( $base );
 	}
 
 	static public function linkCSS( $css, $media="screen" )
@@ -81,6 +103,8 @@ abstract class Template
 
 	static public function integrate( $hook, $obj )
 	{
+//TODO - this should support mutilple hooks defined inside the templatable
+//TODO - this need not be part of template, but part of templatable, so templatables can nest without the root template
 		self::init();
 
 		if( ! $obj instanceof Displayable )
@@ -88,9 +112,16 @@ abstract class Template
 
 		self::appendDOM( $hook, $obj->getDOC() );
 	
-		//TODO - LOGIC FOR ADDING NEW HOOKS TO THE TEMPLATE FROM A DISPLAYABLE
-//		if( is_array( ( $h = $obj->getHooks() ) ) )
-//			self::$hooks[] = $obj->getHooks();
+		if( $obj instanceof Templatable )
+		{
+			$hooks = $obj->getHooks();
+
+			if( ! is_array( $hooks ) )
+				throw new \Exception( "Templatable function getHooks() must return hooks array" );
+			//TODO - LOGIC FOR ADDING NEW HOOKS TO THE TEMPLATE FROM A DISPLAYABLE
+	//		if( is_array( ( $h = $obj->getHooks() ) ) )
+	//			self::$hooks[] = $obj->getHooks();
+		}
 	}
 
 	static public function appendDOM( $hook, $dom )
@@ -105,7 +136,8 @@ abstract class Template
 		self::init();
 
 		$frag = self::$doc->createDocumentFragment();
-		$frag->appendXML( $html );
+		if( $frag->appendXML( $html ) === FALSE )
+			throw new \Exception( "failed to parse html" );
 		return $frag;
 	}
 
@@ -134,8 +166,7 @@ abstract class Template
 				$form->appendChild( $fieldset );
 		}
 		
-
-		self::$doc->save( "php://output" );
+		self::$doc->saveHTMLFile( "php://output" );
 	}
 }
 ?>
