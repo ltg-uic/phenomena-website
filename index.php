@@ -103,6 +103,7 @@ if( stripos( $uri, "home" ) !== 0 )
 	Template::appendDom( "header", Template::HTMLtoDOM( "<h1>".PageController::getRootResource()->getTitle()."</h1>" ) );
 	Template::appendDom( "body", Template::HTMLtoDOM( <<<EOHTML
 		<div style="float: right;">Login Status/Logout</div>
+		<div style="clear: both;"></div>
 EOHTML
 		) );
 }

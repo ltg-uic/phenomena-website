@@ -13,9 +13,20 @@ class HelioRoom extends \PhenLib\Page
 		$html = <<<EOHTML
 <script type="text/javascript">
 <!--
-function HelioRoomSolarSystem( container_id )
+function HelioRoomSolarSystem( container_id, windows, degrees )
 {
+	//static var
 	HelioRoomSolarSystem.svgns = "http://www.w3.org/2000/svg";
+
+	//init values
+//TODO - make this error output into the svg itself
+	if( windows * degrees > 360 )
+	{
+		alert( "invalid solar system arguments" );
+		return null;
+	}
+	this.windows = windows;
+	this.degrees = degrees;
 
 	//create svg canvas
 	this.svg = document.createElementNS( HelioRoomSolarSystem.svgns, "svg" );
@@ -24,20 +35,35 @@ function HelioRoomSolarSystem( container_id )
 	this.svg.setAttribute( "viewbox", "0 0 500 500" );
 	this.svg.setAttribute( "preserveAspectRatio", "xMidYMid meet" );
 
-	this.sectors = document.createElementNS( HelioRoomSolarSystem.svgns, "g");
+	//create svg group for sectors, reference array for sectors
+	var sector_group = document.createElementNS( HelioRoomSolarSystem.svgns, "g");
+	this.sectors = new Array(16);
+	for( var x = 0; x < 16; x++ )
+	{
+		this.sectors[x] = document.createElementNS( HelioRoomSolarSystem.svgns, "path");
+		sector_group.appendChild( this.sectors[x] );
+	}
+		
+	//create svg group for rings
 	this.rings = document.createElementNS( HelioRoomSolarSystem.svgns, "g");
-	this.svg.appendChild( this.sectors );
+
+	//link dom elements together
+	this.svg.appendChild( sector_group );
 	this.svg.appendChild( this.rings );
 	document.getElementById( container_id ).appendChild( this.svg );
 
-	this.windows = 4;
-	this.degrees = 45;
+	//draw things
+	this.drawSectors();
+	this.drawRings();
 }
 
 HelioRoomSolarSystem.prototype.setWindows = function( windows )
 {
+	//out of bounds from ui specification
 	if( windows < 4 || windows > 8 )
 		return false;
+
+	//update values
 	this.windows = windows;
 	this.degrees = 180 / windows;
 	return true;
@@ -50,8 +76,11 @@ HelioRoomSolarSystem.prototype.getWindows = function()
 
 HelioRoomSolarSystem.prototype.setViewAngle = function( degrees )
 {
+	//windows * degrees bigger than the circle
 	if( this.windows * degrees > 360 )
 		return false;
+
+	//update value
 	this.degrees = degrees;
 	return true;
 };
@@ -63,10 +92,7 @@ HelioRoomSolarSystem.prototype.getViewAngle = function()
 
 HelioRoomSolarSystem.prototype.drawSectors = function()
 {
-	//remove sectors
-	while( this.sectors.lastChild )
-		this.sectors.removeChild( this.sectors.lastChild );
-
+	console.log( "drawSectors" );
 	//*** adapted from:
 	//    http://jmvidal.cse.sc.edu/talks/canvassvg/javascriptandsvg.xml ***//
 
@@ -82,8 +108,18 @@ HelioRoomSolarSystem.prototype.drawSectors = function()
 	
 	// Loop through each slice of pie.
 	startangle = 0;
-	for(var x = 0; x < this.windows * 2; x++)
+	for(var x = 0; x < 16; x++)
 	{
+		//get reference to path
+		var path = this.sectors[x];
+
+		//hide sectors not needed for this many windows
+		if( x >= this.windows * 2 )
+		{
+			path.setAttribute( "fill-opacity", "0" );
+			continue;
+		}
+
 		// This is where the wedge ends
 		var endangle = startangle + angles[x%2];
 	
@@ -99,10 +135,6 @@ HelioRoomSolarSystem.prototype.drawSectors = function()
 		// This is a flag for angles larger than than a half circle
 		var big = 0;
 		if (endangle - startangle > Math.PI) big = 1;
-	        
-		// We describe a wedge with an <svg:path> element
-		// Notice that we create this with createElementNS()
-		var path = document.createElementNS( HelioRoomSolarSystem.svgns, "path");
         
 		// This string holds the path details
 		var d = "M " + cx + "," + cy +  // Start at circle center
@@ -114,10 +146,9 @@ HelioRoomSolarSystem.prototype.drawSectors = function()
 
 	        // This is an XML element, so all attributes must be set
 	        // with setAttribute().  We can't just use JavaScript properties
-		path.setAttribute("d", d);              // Set this path 
-		path.setAttribute("fill", colors[x%2]);   // Set wedge color
-		path.setAttribute("class", "{$this->id}_ss-sector" );
-		this.sectors.appendChild(path);               // Add wedge to canvas
+		path.setAttribute( "d", d );              // Set this path 
+		path.setAttribute( "fill", colors[x%2] );   // Set wedge color
+		path.setAttribute( "fill-opacity", "1" );
 
 		// The next wedge begins where this one ends
 		startangle = endangle;
@@ -147,34 +178,48 @@ HelioRoomSolarSystem.prototype.drawRings = function()
 	}
 }
 
+//once page is ready
 $(document).on( "pageinit", function()
 	{
-		var ss = new HelioRoomSolarSystem( "{$this->id}_ss" );
-
+		//references to controls for windows and view angle
 		var control_windows = $("#{$this->id}_ss-control-windows");
 		var control_view_angle = $("#{$this->id}_ss-control-view-angle");
 
+		//init helioroom solar system
+		var ss = new HelioRoomSolarSystem( "{$this->id}_ss", control_windows.prop( "value" ), control_view_angle.prop( "value" ) );
+
+		//bind event when windows changes
 		control_windows.on( "change", function( event, ui )
 		{
-			if( ! ss.setWindows( control_windows[0].value ) )
+			//fast fail if windows is not changing by a integer number
+			if( control_windows.prop( "value" ) == ss.getWindows() )
+				return;
+
+			//if change fails, constrain slider to proper bound
+			if( ! ss.setWindows( control_windows.prop( "value" ) ) )
 				control_windows.slider( 'refresh', ss.getWindows(), true );
+			//if change succeeds, update angle slider to new value and redraw ss
 			else
+			{
 				control_view_angle.slider( 'refresh', ss.getViewAngle(), true );
 				ss.drawSectors();
+			}
 		});
 
+		//bind event when view angle changes
 		control_view_angle.on( "change", function( event, ui )
 		{
-			if( ! ss.setViewAngle( control_view_angle[0].value ) )
+			//fast fail if angle is not changing by a integer number
+			if( control_view_angle.prop( "value" ) == ss.getViewAngle() )
+				return;
+
+			//if change fails, constrain slider to proper bound
+			if( ! ss.setViewAngle( control_view_angle.prop( "value" ) ) )
 				control_view_angle.slider( 'refresh', ss.getViewAngle(), true );
+			//if change succeeds, redraw ss
 			else
 				ss.drawSectors();
 		});
-
-		ss.setWindows( control_windows[0].value );
-		ss.setViewAngle( control_view_angle[0].value );
-		ss.drawSectors();
-		ss.drawRings();
 	} );
 -->
 </script>
