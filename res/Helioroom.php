@@ -92,7 +92,6 @@ HelioRoomSolarSystem.prototype.getViewAngle = function()
 
 HelioRoomSolarSystem.prototype.drawSectors = function()
 {
-	console.log( "drawSectors" );
 	//*** adapted from:
 	//    http://jmvidal.cse.sc.edu/talks/canvassvg/javascriptandsvg.xml ***//
 
