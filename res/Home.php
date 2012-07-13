@@ -13,7 +13,7 @@ class Home extends \PhenLib\Page
 		$img = $rootDoc->createElement( "img" );
 		$img->setAttribute( "alt", "The Phenomena Server" );
 		$img->setAttribute( "src", \PhenLib\PageController::getBaseURL() . "lib/media/server.svg" );
-		$img->setAttribute( "style", "float: left; width: 286px; height: 214px; background-color: #5B5B5B; border: solid 1px #CCCCCC; margin: 5px;" );
+		$img->setAttribute( "style", "float: left; width: 286px; height: 214px; background-color: #555555; border: solid 1px #CCCCCC; margin: 5px;" );
 		$root->appendChild( $img );
 
 		$h1 = $rootDoc->createElement( "h1" );
