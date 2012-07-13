@@ -5,11 +5,14 @@ abstract class Displayable
 {
 	//TODO - this->id might be more appropriate only on "actions", where it is needed
 	protected $id;
+	private $className;
 
 	private $doc; //master dom document
 	protected $root; //root element to build on
 
-	protected function __construct()
+	private static $instances = array();
+
+	public function __construct()
 	{
 		$rootDoc = Template::getDOC();
 
@@ -18,15 +21,11 @@ abstract class Displayable
 		$this->root = $rootDoc->createElement( "div" );
 
 		//get the "late static binding" class name
-		$className = get_called_class();
-
-		$this->id = str_replace( "\\", "-", $className ) . "_" . $this->counter();
-
-		$this->root->setAttribute( "id", $this->id );
+		$this->className = get_called_class();
 
 		//TODO	- this might be overkill, and possibly ineficient, but lets go for it for now:
 		//	- need to filter for duplicate interfaces / traits in the final string
-		$classReflect = new \ReflectionClass( $className ); 
+		$classReflect = new \ReflectionClass( $this->className ); 
 		$htmlClass = "";
 		do
 		{
@@ -41,6 +40,24 @@ abstract class Displayable
 
 		$this->root->setAttribute( "class", str_replace( "\\", "-", substr( $htmlClass, 0, -1 ) ) ); 
 		$this->doc->appendChild( $this->root );
+
+		self::$instances[] = $this;
+	}
+
+	abstract protected function generateOutput();
+
+	public static function generateAllOutput()
+	{
+		for( $x=0; $x<sizeof(self::$instances); $x++ )
+		{
+			$obj = self::$instances[$x];
+			//when called this late - last page is the current page
+			$pagePathIdPrefix = str_replace( "/", "_", PageController::getLastPage() );
+			$obj->id = $pagePathIdPrefix . str_replace( "\\", "-", $obj->className ) . "_" . $obj->counter();
+			$obj->root->setAttribute( "id", $obj->id );
+			$obj->generateOutput();
+		}
+		self::$instances = array();
 	}
 
 	protected function counter()

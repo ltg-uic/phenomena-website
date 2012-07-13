@@ -3,22 +3,19 @@ namespace Phen;
 
 class LoginStatus extends \PhenLib\Displayable implements \PhenLib\Action 
 {
-	public function __construct()
+	public function generateOutput()
 	{
-		parent::__construct();
-
 		$user = \PhenLib\Authentication::getAuthenticatedUser();
 		$rootPath = \PhenLib\PageController::getBaseRelativePath();
 		$rootDoc = \PhenLib\Template::getDOC();
 		$root = $this->root;
 	
 		$html = <<<EOHTML
-
 <script type="text/javascript">
 <!--	
 
 $(document).one('pageinit', function() {
-
+	console.log( "loginstatus - pageinit" );
 	var logoutButton = $("#{$this->id}_action_logout");
 	logoutButton.on('click', function() {
 		//send logout request
@@ -31,7 +28,7 @@ $(document).one('pageinit', function() {
                         complete: function( jqXHR, status ) 
 				{
                         		if( jqXHR.status === 200 )
-                                		$.mobile.changePage( "{$rootPath}" );
+                                		$.mobile.changePage( "{$rootPath}", { allowSamePageTransition: false, reloadPage: true } );
 				}
                 });
 	});
@@ -42,7 +39,6 @@ $(document).one('pageinit', function() {
 
 <span>Logged In As {$user}</span>
 <a data-role="button" id="{$this->id}_action_logout" data-mini="true">Logout</a>
-
 EOHTML;
 
 		//replaces root container
@@ -53,6 +49,7 @@ EOHTML;
 	{
 		if( isset( $_POST['action_logout'] ) )
 		{
+			//die('logout!');
 			\PhenLib\Authentication::doLogout();
 			exit();	
 		} 

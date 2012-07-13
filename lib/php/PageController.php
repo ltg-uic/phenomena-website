@@ -71,12 +71,14 @@ abstract class PageController
 	private static function loadResources()
 	{
 		self::$resourceQueue = new \SPLQueue();
+		self::$session['lastPage'] = "";
 		while( ! self::$URIQueue->isEmpty() )
 		{
 			//determine class name from url
 			//url name format is "word-word-word-word"
 			//converts to class name format of "WordWordWordWord"
-			$name = str_replace( " ", "", ucwords( str_replace( "-", " ", self::$URIQueue->dequeue() ) ) );
+			$rawName = self::$URIQueue->dequeue();
+			$name = str_replace( " ", "", ucwords( str_replace( "-", " ", $rawName ) ) );
 
 			//404 error if invalid class
 			if( ! is_readable( "res/{$name}.php" ) )
@@ -92,11 +94,10 @@ abstract class PageController
 			$class = "\\Phen\\{$name}";
 			$res = new $class( self::$URIQueue );
 	
-//TODO - this is incorrect, needs to be full url tree - not just base page name
 			if( $res instanceof Page )
 			{
 				//keep this / last page history
-				self::$session['lastPage'] = $name;
+				self::$session['lastPage'] .= "{$rawName}/";
 			}
 	
 			if( $res instanceof Action )

@@ -5,10 +5,8 @@ class JQueryMobileTemplate extends \PhenLib\Displayable implements \PhenLib\Temp
 {
 	private $hooks = array();
 
-	public function __construct()
+	public function generateOutput()
 	{
-		parent::__construct();
-
 		$rootDoc = \PhenLib\Template::getDOC();
 		$root = $this->root;
 

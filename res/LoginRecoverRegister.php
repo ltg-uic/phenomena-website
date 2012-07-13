@@ -16,9 +16,11 @@ class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Acti
 			if( $uq->dequeue() !== "recover" )
 				throw new Exception( "invalid argument" );
 			$this->recovery_key = $uq->dequeue();
-			return;
 		}
+	}
 
+	public function generateOutput()
+	{
 		$recovery_result_popup = "";
 		if( ( $recovery_result = \PhenLib\User::getRecoveryResult() ) !== NULL )
 		{ 

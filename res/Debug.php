@@ -3,10 +3,8 @@ namespace Phen;
 
 class Debug extends \PhenLib\Displayable
 {
-	public function __construct()
+	public function generateOutput()
 	{
-		parent::__construct();
-
 		$get = htmlentities( print_r( $_GET, true ) );
 		$post = htmlentities( print_r( $_POST, true ) );
 		$session = htmlentities( ( isset( $_SESSION ) ) ? print_r( $_SESSION, true ) : "" );

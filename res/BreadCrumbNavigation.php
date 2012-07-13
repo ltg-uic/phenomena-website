@@ -3,10 +3,8 @@ namespace Phen;
 
 class BreadCrumbNavigation extends \PhenLib\Displayable
 {
-	public function __construct()
+	public function generateOutput()
 	{
-		parent::__construct();
-
 		$rootDoc = \PhenLib\Template::getDOC();
 		$root = $this->root;
 		

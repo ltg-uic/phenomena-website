@@ -28,8 +28,7 @@ require_once( "lib/php/jaxl/core/jaxl.class.php" );
 $burl = \PhenLib\PageController::getBaseURL();
 \PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
 \PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
-\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.theme.css" );
-\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.structure.css" );
+\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.css" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery-1.7.2.js" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.mobile.js" );
 

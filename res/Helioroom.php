@@ -3,10 +3,8 @@ namespace Phen;
 
 class HelioRoom extends \PhenLib\Page
 {
-	public function __construct()
+	public function generateOutput()
 	{
-		parent::__construct();
-
 		$colorPickerButtonSize = "50px;";
 
 		$rootDoc = \PhenLib\Template::getDOC();
@@ -233,9 +231,9 @@ HelioRoomSolarSystem.prototype.drawPlanets = function()
 	
 		var animMotion = document.createElementNS( HelioRoomSolarSystem.svgns, "animateMotion" );
 		var baseDuration = Math.floor( Math.random() * 120 ) + 15;
+		animMotion.setAttributeNS( null, "begin", "0s" );
 		animMotion.setAttributeNS( null, "dur", baseDuration / this.speed + "s" );
 		animMotion.setAttributeNS( null, "repeatCount", "indefinite" );
-		animMotion.setAttributeNS( null, "startOffset", "25%" );
 
 		var mpath = document.createElementNS( HelioRoomSolarSystem.svgns, "mpath" );
 		mpath.setAttributeNS( HelioRoomSolarSystem.xlns, "xlink:href", "#orbit" + x );
