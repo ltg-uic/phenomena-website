@@ -39,24 +39,9 @@ abstract class Template
 		$body = $doc->createElement( "body" );
 		$html->appendChild( $body );
 
-//TODO - this should be done via a function call to template, here for now
-$pageDiv = $doc->createElement( "div" );
-$pageDiv->setAttribute( "data-role", "page" );
-$pageDiv->setAttribute( "data-theme", "a" );
-$body->appendChild( $pageDiv );
-
-$headerDiv = $doc->createElement( "div" );
-$headerDiv->setAttribute( "data-role", "header" );
-$pageDiv->appendChild( $headerDiv );
-
-$contentDiv = $doc->createElement( "div" );
-$contentDiv->setAttribute( "data-role", "content" );
-$pageDiv->appendChild( $contentDiv );
-
 		self::$hooks = array(
 			"head" => $head,
-			"header" => $headerDiv,
-			"body" => $contentDiv
+			"body" => $body
 		);
 	}
 
@@ -101,32 +86,45 @@ $pageDiv->appendChild( $contentDiv );
 		self::$hooks['head']->appendChild( $script );
 	}
 
-	static public function integrate( $hook, $obj )
+	static public function integrate( $hook, $res )
 	{
-//TODO - this should support mutilple hooks defined inside the templatable
-//TODO - this need not be part of template, but part of templatable, so templatables can nest without the root template
 		self::init();
 
-		if( ! $obj instanceof Displayable )
-			throw new \Exception( "Template cannot integrate non-pluggable object" );
-
-		self::appendDOM( $hook, $obj->getDOC() );
-	
-		if( $obj instanceof Templatable )
+		//encapsulate non-queue resources into queue
+		if( ! $res instanceof \SPLQueue )
 		{
-			$hooks = $obj->getHooks();
+			$tmp = $res;
+			$res = new \SPLQueue();
+			$res->enqueue( $tmp );
+		}
 
-			if( ! is_array( $hooks ) )
-				throw new \Exception( "Templatable function getHooks() must return hooks array" );
-			//TODO - LOGIC FOR ADDING NEW HOOKS TO THE TEMPLATE FROM A DISPLAYABLE
-	//		if( is_array( ( $h = $obj->getHooks() ) ) )
-	//			self::$hooks[] = $obj->getHooks();
+		foreach( $res as $obj )
+		{
+			if( ! $obj instanceof Displayable )
+				throw new \Exception( "Template cannot integrate non-pluggable object" );
+	
+			self::appendDOM( $hook, $obj->getDOC() );
+		
+			//merge in hooks from templatable objects
+			if( $obj instanceof Templatable )
+			{
+				$hooks = $obj->getHooks();
+	
+				if( ! is_array( $hooks ) )
+					throw new \Exception( "Templatable function getHooks() must return hooks array" );
+
+				foreach( $hooks as $key=>$val )
+					self::$hooks[$key] = $val;
+			}
 		}
 	}
 
 	static public function appendDOM( $hook, $dom )
 	{
 		self::init();
+
+		if( ! isset( self::$hooks[$hook] ) )
+			throw new \Exception( "Invalid hook: '{$hook}'" );
 
 		self::$hooks[$hook]->appendChild( $dom );
 	}

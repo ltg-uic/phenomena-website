@@ -3,6 +3,21 @@ namespace PhenLib;
 
 abstract class User
 {
+//TODO - this could be a trait i think....
+	private static $session = NULL;
+
+	private static function init()
+	{
+		Session::start();
+
+		//link static vars to session storage
+		if( ! isset( $_SESSION[__CLASS__] ) )
+			$_SESSION[__CLASS__] = array(
+				"recoveryResult" => NULL
+				);
+		self::$session =& $_SESSION[__CLASS__];
+	}
+
 	public static function create( $user, $pass, $email )
 	{
 //TODO - password minimum complexity
@@ -33,8 +48,6 @@ abstract class User
 		if( $result === TRUE )
 			$id = $stmt->insert_id;
 		
-		//$stmt->close();
-
 		if( $result === FALSE ) 
 		{
 			return FALSE;
@@ -51,7 +64,6 @@ abstract class User
 		$db->real_query( "SELECT * FROM `phenomenas`" );
 
 		$res = $db->store_result();
-
 		$xmpp = new XMPPJAXL();
 		while( $row = $res->fetch_assoc() )
 			for( $x=0; $x<$windows; $x++ )
@@ -59,7 +71,10 @@ abstract class User
 				$xmpp_user = "{$row['phenomena_name']}_{$id}_{$x}";
 				XMPPServiceAdministration::addUser( $xmpp, $xmpp_user, $GLOBALS['xmppDomain'], Password::generateRandom(), $added[$xmpp_user] );
 			}
+		//TODO - fix JAXL library so error handling does not need to be turned off
+		PHPInternals::setExceptionOnError( FALSE );	
 		$xmpp->execute();
+		PHPInternals::setExceptionOnError( TRUE );	
 		//echo "users added:<br />\n";
 		//var_export( $added );
 		//echo $xmpp->getErrors();
@@ -85,33 +100,143 @@ abstract class User
 
 	public static function recoverInitialize( $email, $new_password )
 	{
-		//get user id, insert id + recovery into table
+		$db = Database::connect();
 
-		//hash and store new password into recovery table
+		$sql = "SELECT `user_id`, `user_login` FROM `phen_website`.`users` WHERE `user_email`= ?";
 
+		$stmt = $db->prepare( $sql );
+		if( $stmt === FALSE )
+			return FALSE;
+		$stmt->bind_param("s", $email);
+		$result = $stmt->execute();
+		//check for valid user
+		if( $result === FALSE )
+		{
+			$stmt->close();
+			return FALSE;
+		}
+		//get ID and user name		
+		$stmt->bind_result($id, $user);
+		$stmt->fetch();
+		$stmt->close();
+
+		//generate key and urlencode
+		
+		$key = Password::generateRandomWebSafe();
+		//hash password
+		$pass = HashSSHA512::hash( $new_password );
+		//insert into password_recover table
+		$sql = "INSERT INTO `phen_website`.`password_recover`
+			(
+				`user_id`,
+				`password_recover_key`,
+				`password_recover_new_password`,
+				`password_recover_time`
+			)
+			VALUES
+			(
+				?, ?, ?, ?
+			)";
+		$stmt = $db->prepare( $sql );
+		if( $stmt === FALSE )
+			return FALSE;
+		$time = time();
+		$stmt->bind_param("issi", $id, $key, $pass, $time);
+		$result = $stmt->execute();
+		$stmt->close();
+		
+		if( $result === FALSE )
+			return FALSE;
+		
+		$url = PageController::getBaseURL()."LoginRecoverRegister/";
 		//send recovery email with link
-		//need to probably urlescape the key string
-		//PageController::getBaseURL()."/LoginRegisterRecoverWhatever?recover_key=saodfnaoiudsgbaouggafdharfdjhwrtjh
-
-		//return true/false if email is on file
+		if( !self::MailRecoveryKey( $user, $email, $url, $key ) )
+			return FALSE;
+		
+		return TRUE;
 	}
 
 	public static function recoverFinalize( $key )
 	{
-		//called from execute block $_GET['recover_key'] in loginregrec class
-		//if matches database entry, overwrite password hash in user table with one in recovery table, popup and advise user that password is reset
+		self::init();
+		$db = Database::connect();
+		//check for valid request
+		$sql = "SELECT `password_recover_id`, `user_id`, `password_recover_new_password`, `password_recover_time`  FROM `phen_website`.`password_recover` WHERE `password_recover_key`=?";
+		$stmt = $db->prepare( $sql );
+		if( $stmt === FALSE )
+		{	
+			self::$session['recoveryResult'] = FALSE;
+			return FALSE;
+		}
+		$stmt->bind_param( "s", $key );
+		$result = $stmt->execute();
+		if( $result === FALSE )
+		{
+			self::$session['recoveryResult'] = FALSE;
+			$stmt->close();
+			return FALSE;
+		}
+		//get the user id, new password, and request time
+		$stmt->bind_result( $pr_id, $id, $pass, $time );
+		$stmt->fetch();
+		$stmt->close();
+		//check for expired request
+		if( ($time+3600) < time() )
+		{
+			self::$session['recoveryResult'] = FALSE;
+			return FALSE;
+		}
+		//update user password
+		$sql = "UPDATE `phen_website`.`users` 
+			SET `user_password`= ? 
+			WHERE `user_id`= ?";
+		$stmt = $db->prepare( $sql );
+		if( $stmt === FALSE )
+		{
+			self::$session['recoveryResult'] = FALSE;
+			return FALSE;
+		}
+		$stmt->bind_param("si", $pass, $id );
+		$result = $stmt->execute();
+		$stmt->close();
+		if( $result === FALSE )
+		{
+			self::$session['recoveryResult'] = FALSE;
+			return FALSE;
+		}
+		//delete password recovery record
+		$sql = "DELETE FROM `phen_website`.`password_recover` WHERE `password_recover_id`= ?";
+		$stmt = $db->prepare( $sql );
+		$stmt->bind_param("i", $pr_id);
+		$result = $stmt->execute(); 
+		self::$session['recoveryResult'] = TRUE;
+		return TRUE;
 	}
 
-	public static function mailRecoveryKey( $name, $email, $url, $key )
+	public static function getRecoveryResult()
 	{
-		$key = rawurlencode( $key );
+		self::init();
+
+		return self::$session['recoveryResult'];
+	}
+
+	public static function clearRecoveryResult()
+	{
+		self::init();
+
+		self::$session['recoveryResult'] = NULL;
+	}
+
+	public static function mailRecoveryKey( $user, $email, $url, $key )
+	{
+		$key = urlencode( $key );
 		$message = 
 			"{$user},\n" .
 			"\n" .
 			"You have requested to reset your password for the Phenomenon Server.\n" .
 			"\n" .
 			"Please click the following link to confirm your request:\n" .
-			"{$url}?recovery_key={$key}\n" .
+			"{$url}recover/{$key}\n" .
 			"\n" .
 			"Thank you,\n" . 
 			"The Phenomenon Server";

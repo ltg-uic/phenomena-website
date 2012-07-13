@@ -15,8 +15,10 @@ class HelioRoom extends \PhenLib\Page
 <!--
 function HelioRoomSolarSystem( container_id, windows, degrees )
 {
+//TODO - build svg as html with php due to anim bug?
 	//static var
 	HelioRoomSolarSystem.svgns = "http://www.w3.org/2000/svg";
+	HelioRoomSolarSystem.xlns = "http://www.w3.org/1999/xlink";
 
 	//init values
 //TODO - make this error output into the svg itself
@@ -30,15 +32,27 @@ function HelioRoomSolarSystem( container_id, windows, degrees )
 
 	//create svg canvas
 	this.svg = document.createElementNS( HelioRoomSolarSystem.svgns, "svg" );
-	this.svg.setAttribute( "width", "500" );
-	this.svg.setAttribute( "height", "500" );
-	this.svg.setAttribute( "viewbox", "0 0 500 500" );
-	this.svg.setAttribute( "preserveAspectRatio", "xMidYMid meet" );
+	this.svg.setAttributeNS( null, "version", "1.1" );
+	this.svg.setAttributeNS( null, "width", "500" );
+	this.svg.setAttributeNS( null, "height", "500" );
+	this.svg.setAttributeNS( null, "viewbox", "0 0 500 500" );
+	this.svg.setAttributeNS( null, "preserveAspectRatio", "xMidYMid meet" );
+	document.getElementById( container_id ).appendChild( this.svg );
+
+	//background circle
+	var bg = document.createElementNS( HelioRoomSolarSystem.svgns, "circle" );
+	bg.setAttributeNS( null, "cx", 250 );
+	bg.setAttributeNS( null, "cy", 250 );
+	bg.setAttributeNS( null, "r", 250 );
+	bg.setAttributeNS( null, "stroke-width", "0" );
+	bg.setAttributeNS( null, "fill", "#000000" );
+	this.svg.appendChild( bg );
 
 	//create svg group for sectors, reference array for sectors
 	var sector_group = document.createElementNS( HelioRoomSolarSystem.svgns, "g");
-	this.sectors = new Array(16);
-	for( var x = 0; x < 16; x++ )
+	this.svg.appendChild( sector_group );
+	this.sectors = new Array(8);
+	for( var x = 0; x < 8; x++ )
 	{
 		this.sectors[x] = document.createElementNS( HelioRoomSolarSystem.svgns, "path");
 		sector_group.appendChild( this.sectors[x] );
@@ -46,15 +60,33 @@ function HelioRoomSolarSystem( container_id, windows, degrees )
 		
 	//create svg group for rings
 	this.rings = document.createElementNS( HelioRoomSolarSystem.svgns, "g");
-
-	//link dom elements together
-	this.svg.appendChild( sector_group );
 	this.svg.appendChild( this.rings );
-	document.getElementById( container_id ).appendChild( this.svg );
 
 	//draw things
 	this.drawSectors();
 	this.drawRings();
+
+}
+
+HelioRoomSolarSystem.prototype.test = function()
+{
+	//animation stuff
+	var circle = document.createElementNS( HelioRoomSolarSystem.svgns, "circle" );
+	circle.setAttributeNS( null, "r", 5 );
+	circle.setAttributeNS( null, "fill", "#FF0000" );
+	
+	var animMotion = document.createElementNS( HelioRoomSolarSystem.svgns, "animateMotion" );
+	animMotion.setAttributeNS( null, "dur", "6s" );
+//	animMotion.setAttributeNS( null, "fill", "freeze" );
+	animMotion.setAttributeNS( null, "repeatCount", "indefinite" );
+
+	var mpath = document.createElementNS( HelioRoomSolarSystem.svgns, "mpath" );
+	mpath.setAttributeNS( HelioRoomSolarSystem.xlns, "xlink:href", "#sector1");
+
+	animMotion.appendChild( mpath );
+	circle.appendChild( animMotion );
+	this.svg.appendChild( circle );	
+//	animMotion.beginElement();
 }
 
 HelioRoomSolarSystem.prototype.setWindows = function( windows )
@@ -107,20 +139,20 @@ HelioRoomSolarSystem.prototype.drawSectors = function()
 	
 	// Loop through each slice of pie.
 	startangle = 0;
-	for(var x = 0; x < 16; x++)
+	for(var x = 0; x < 8; x++)
 	{
 		//get reference to path
 		var path = this.sectors[x];
 
 		//hide sectors not needed for this many windows
-		if( x >= this.windows * 2 )
+		if( x >= this.windows )
 		{
-			path.setAttribute( "fill-opacity", "0" );
+			path.setAttributeNS( null, "fill-opacity", "0" );
 			continue;
 		}
 
 		// This is where the wedge ends
-		var endangle = startangle + angles[x%2];
+		var endangle = startangle + angles[0];
 	
 		// Compute the two points where our wedge intersects the circle
 		// These formulas are chosen so that an angle of 0 is at 12 o'clock
@@ -145,12 +177,13 @@ HelioRoomSolarSystem.prototype.drawSectors = function()
 
 	        // This is an XML element, so all attributes must be set
 	        // with setAttribute().  We can't just use JavaScript properties
-		path.setAttribute( "d", d );              // Set this path 
-		path.setAttribute( "fill", colors[x%2] );   // Set wedge color
-		path.setAttribute( "fill-opacity", "1" );
+		path.setAttributeNS( null, "d", d );              // Set this path 
+		path.setAttributeNS( null, "fill", "#292729" );   // Set wedge color
+		path.setAttributeNS( null, "fill-opacity", "1" );
+		path.setAttributeNS( null, "id", "sector" + x );
 
 		// The next wedge begins where this one ends
-		startangle = endangle;
+		startangle = endangle + angles[1];
 	}	
 };
 
@@ -163,20 +196,24 @@ HelioRoomSolarSystem.prototype.drawRings = function()
 	for( var x = 0; x < 10; x++ )
 	{
 		var circle = document.createElementNS( HelioRoomSolarSystem.svgns, "circle" );
-		circle.setAttribute( "cx", "250" );
-		circle.setAttribute( "cy", "250" );
-		circle.setAttribute( "r", ( (x+1) / 11 ) * 250 );
-		circle.setAttribute( "stroke", "#5B5B5B" );
-		circle.setAttribute( "stroke-width", "1" );
-		circle.setAttribute( "fill", "#FFFFFF" );
+		circle.setAttributeNS( null, "cx", "250" );
+		circle.setAttributeNS( null, "cy", "250" );
+		circle.setAttributeNS( null, "r", ( (x+1) / 11 ) * 250 );
+		circle.setAttributeNS( null, "stroke", "#5B5B5B" );
+		circle.setAttributeNS( null, "stroke-width", "1" );
+		circle.setAttributeNS( null, "fill", "#FFFFFF" );
+		circle.setAttributeNS( null, "id", "orbit" + x );
 		if( x == 0 )
-			circle.setAttribute( "fill-opacity", "1" );
+			circle.setAttributeNS( null, "fill-opacity", "1" );
 		else
-			circle.setAttribute( "fill-opacity", "0" );
+			circle.setAttributeNS( null, "fill-opacity", "0" );
 		this.rings.appendChild(circle);
 	}
 }
 
+//TODO - make not global
+var ss;
+		//init helioroom solar system
 //once page is ready
 $(document).on( "pageinit", function()
 	{
@@ -185,11 +222,13 @@ $(document).on( "pageinit", function()
 		var control_view_angle = $("#{$this->id}_ss-control-view-angle");
 
 		//init helioroom solar system
-		var ss = new HelioRoomSolarSystem( "{$this->id}_ss", control_windows.prop( "value" ), control_view_angle.prop( "value" ) );
+		ss = new HelioRoomSolarSystem( "{$this->id}_ss", control_windows.prop( "value" ), control_view_angle.prop( "value" ) );
+			ss.test();
 
 		//bind event when windows changes
 		control_windows.on( "change", function( event, ui )
 		{
+//TODO - auto update max angle bound
 			//fast fail if windows is not changing by a integer number
 			if( control_windows.prop( "value" ) == ss.getWindows() )
 				return;
@@ -304,11 +343,10 @@ $(document).on( "pageinit", function()
 		<label for="{$this->id}_ss-control-system-speed">System speed</label>
 		<input type="range" name="{$this->id}_ss-control-system-speed" id="{$this->id}_ss-control-system-speed" value="3" min="1" max="30" />
 	</div>
-	<div class="ui-block-b"><div id="{$this->id}_ss"></div></div>
+	<div class="ui-block-b" id="{$this->id}_ss">
+	</div>
 </div>
-
 EOHTML;
-
 		$this->root->appendChild( \PhenLib\Template::HTMLtoDOM( $html ) );
 	}
 

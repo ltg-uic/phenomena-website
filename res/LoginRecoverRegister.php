@@ -3,30 +3,54 @@ namespace Phen;
 
 class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Action
 {
-	public function __construct()
+	private $recovery_key;
+
+	public function __construct( \SPLQueue $uq = NULL )
 	{
 		parent::__construct();
 
+		//get recovery key from url, if present
+		$this->recovery_key = NULL;
+		if( $uq !== NULL && ! $uq->isEmpty() )
+		{
+			if( $uq->dequeue() !== "recover" )
+				throw new Exception( "invalid argument" );
+			$this->recovery_key = $uq->dequeue();
+			return;
+		}
+
+		$recovery_result_popup = "";
+		if( ( $recovery_result = \PhenLib\User::getRecoveryResult() ) !== NULL )
+		{ 
+			if( $recovery_result === TRUE )
+				$msg = "Password Successfully Reset";
+			else
+				$msg = "There was an error resetting your password";
+			$recovery_result_popup = <<<EOJAVASCRIPT
+$(document).one('pageshow', function() {
+	triggerDialogFeedback( "{$msg}" );
+});
+EOJAVASCRIPT;
+			\PhenLib\User::clearRecoveryResult();
+		}
 		$html = <<<EOHTML
-<!-- -->
 <script type="text/javascript">
+<!--
 
 triggerDialogFeedback = function( msg ) 
 {
-	var dialogFeedback = $( '#{$this->id}_dialog-feedback' )
+	var dialogFeedback = $( '#{$this->id}_dialog-feedback' );
 	dialogFeedback.empty();
 	dialogFeedback.append( $( '<span></span>' ).text( msg ) );
 	dialogFeedback.popup( "open" );
 }
 
-
-$(document).on('pageinit', function() 
+$(document).one('pageinit', function() 
 {
 	var loginForm = $( "#{$this->id}_action_login" );
 	loginForm.on('submit', function( e ) 
 	{
 		//prevent form submission
-		console.log("prevent default");
 		e.preventDefault();
 		e.stopPropagation();
 		var username = $( '#{$this->id}_action_login input[name="username"]' ).prop( "value" );
@@ -42,10 +66,8 @@ $(document).on('pageinit', function()
 				{ 
 					if( jqXHR.status === 200 ) 
 					{	
-						console.log(jqXHR);
 						if( jqXHR.responseText === "true" )
 						{
-							//console.log("Login Successful");
 							$.mobile.changePage( "control-panel/" );
 						}
 						else
@@ -57,7 +79,6 @@ $(document).on('pageinit', function()
 		} ).fail( function()
 			{
 			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
-			//console.log( 'fail' );
 		});
 	});
 
@@ -82,7 +103,6 @@ $(document).on('pageinit', function()
 				{ 
 					if( jqXHR.status === 200 ) 
 					{	
-						console.log(jqXHR);
 						if( jqXHR.responseText === "true" )
 							triggerDialogFeedback("Your Registration Was Successful, Please Log In");
 						else
@@ -92,11 +112,9 @@ $(document).on('pageinit', function()
 		} ).fail( function()
 			{
 			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
-			//console.log( 'fail' );
 		});
 	});
-
-
+	
 	var recoverForm = $( "#{$this->id}_action_recover" );
 	recoverForm.on('submit', function( e ) 
 	{
@@ -121,7 +139,6 @@ $(document).on('pageinit', function()
 				{ 
 					if( jqXHR.status === 200 ) 
 					{	
-						console.log(jqXHR);
 						if( jqXHR.responseText === "true" )
 							triggerDialogFeedback("Password Recovery Email Sent, Please Check Your Email");
 						else
@@ -134,9 +151,10 @@ $(document).on('pageinit', function()
 		
 		});
 	});
-
-
+	
 });
+{$recovery_result_popup}
+-->
 </script>
 <form id="{$this->id}_action_login" action="LoginRecoverRegister" method="post">
 	<div>
@@ -230,12 +248,18 @@ EOHTML;
 				exit();
 			}
 		}
+		else if( $this->recovery_key != NULL )
+		{
+			\PhenLib\User::recoverFinalize( $this->recovery_key );
+		}
 		else
 			throw new \Exception( "missing or invalid action" );
 	}
 
 	public function getRedirect()
 	{
+		if( $this->recovery_key != NULL )
+			return "../../";
 		//All actions handled by JSON
 		return NULL;
 	}

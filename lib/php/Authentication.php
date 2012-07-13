@@ -1,19 +1,13 @@
 <?php
 namespace PhenLib;
 
-class Authentication
+abstract class Authentication
 {
-//TODO - finish implementing singleton here and elsewhere
-//	use Singleton;
-
-	private static $instance = NULL;
+//TODO - this could be a trait i think....
 	private static $session = NULL;
 
-	private function __construct()
+	private static function init()
 	{
-		if( self::$instance !== NULL )
-			throw new \Exception( "Authentication should never instantiate more than once" );
-
 		Session::start();
 
 		//link static vars to session storage
@@ -22,12 +16,6 @@ class Authentication
 				"authenticated" => FALSE
 				);
 		self::$session =& $_SESSION[__CLASS__];
-	}
-
-	private static function init()
-	{
-		if( self::$instance === NULL )
-			self::$instance = new Authentication();
 	}
 
 	public static function doLogin( $user, $pass )

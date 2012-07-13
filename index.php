@@ -1,112 +1,79 @@
 <?php
-namespace PhenLib;
+namespace Phen;
 
 //read config file
 require_once( "config.php" );
 
-#default exception handler
-\set_exception_handler( function( $e )
-{
-	header( "HTTP/1.1 500 Internal Server Error" );
-	exit(	"<h1>HTTP/1.1 500 Internal Server Error</h1>\n\n" .
-		"<pre>\n" .
-		$e->getMessage() . "\n\n" . $e->getTraceAsString() .
-		"\n</pre>" );
-} );
-
-#autoload classes
-\spl_autoload_register( function( $name )
-{
-	//TODO validate / sanitize this input
-	$name_arr = explode( "\\", $name );
-	switch( sizeof( $name_arr ) )
-	{
-		case 2:
-			$ns = $name_arr[0];
-			$cl = $name_arr[1];
-			break;
-		case 1:
-			$cl = $name_arr[0];
-		default:
-			$ns = NULL;
-	}
-	switch( $ns )
-	{
-		case "Phen":
-			$file = "res/{$cl}.php";
-			break;
-		case "PhenLib":
-			$file = "lib/php/{$cl}.php";
-			break;
-		default:
-			throw new \Exception( "Unknown namespace for class '{$name}'." );
-			return;
-	}
-
-	//TODO - detect when this should thow a 404 error (between autoload/controller)
-	//extra paren needed for language construct
-	if( ! is_readable( $file ) || ( include_once( $file ) ) === FALSE )
-	{
-		throw new \Exception( "Can't include class file for '{$name}'." );
-	}
-
-
-	//TODO - check for traits, to enforce singleton rule - maybe unify this logic since its done in displayable
-	//	- check if traits from parent items show on inherited - might not need recursion..
-	$classReflect = new \ReflectionClass( $name ); 
-	$traits = array();
-	do
-	{
-		foreach( $classReflect->getTraitNames() as $trait )
-			$traits[] = $trait;
-	} while( $classReflect = $classReflect->getParentClass() );
-	if( in_array( "PhenLib\Singleton", $traits, TRUE ) )
-	{
-		$classReflect = new \ReflectionClass( $name );
-		if( $classReflect->isInstantiable() )
-			throw new \Exception( "Class using Singleton trait is instantiable: {$name}" );
-	}
-} );
-
-//executes when script stops
-register_shutdown_function( function()
-{
-	if( class_exists( "\PhenLib\Database", FALSE ) )
-		Database::close();
-} );
-
+//set default time zone
 \date_default_timezone_set( $GLOBALS['timezone'] );
 
+//hook into php internals to provide functionality
+require( "lib/php/PHPInternals.php" );
+\PhenLib\PHPInternals::registerExceptionHandler();
+\PhenLib\PHPInternals::registerErrorHandler();
+\PhenLib\PHPInternals::registerClassAutoloader();
+\PhenLib\PHPInternals::registerShutdownHandler();
+
+//include 3rd party libraries
 require_once( "lib/php/jaxl/core/jaxl.class.php" );
-
-//get uri and build queue of it
-//default set to home
-$uri = ( isset( $_GET['uri'] ) ) ? $_GET['uri'] : "home";
-$uri = ( $uri !== "" ) ? $uri : "home";
-$uq = new URIQueue( $uri );
-
-//init page controller
-PageController::init( $uq );
 
 //TODO - SOMEWHERE IMPLEMENT ACCESS RULES BASED ON AUTH
 
-//generate output
-Template::setBaseURL( PageController::getBaseURL() );
-Template::linkCSS( "lib/css/phenomena.css" );
-Template::appendDOM( "head", Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
-Template::linkCSS( "lib/css/jquery/jquery.mobile.theme.android-1.1.0.css" );
-Template::linkCSS( "lib/css/jquery/jquery.mobile.structure.css" );
-Template::scriptExternal( "lib/js/jquery/jquery-1.7.2.js" );
-Template::scriptExternal( "lib/js/jquery/jquery.mobile.js" );
-if( stripos( $uri, "home" ) !== 0 )
+//init page controller
+\PhenLib\PageController::init( ( isset( $_GET['uri'] ) ? $_GET['uri'] : NULL ), "home" );
+
+//=== GENERATE OUTPUT ===
+
+//link resources into header
+$burl = \PhenLib\PageController::getBaseURL();
+\PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
+\PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
+\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.theme.android-1.1.0.css" );
+\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.structure.css" );
+\PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery-1.7.2.js" );
+\PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.mobile.js" );
+
+//add jquery mobile template
+\PhenLib\Template::integrate( "body", new JQueryMobileTemplate() );
+
+//add elements to template
+$rq = \PhenLib\PageController::getResourceQueue();
+$rqc = $rq->count();
+
+
+//TODO - split this off into a displayable resource
+//breadcrumb navigation
+$prefix = "";
+for( $x=0; $x<$rqc-1; $x++ )
+	$prefix .= "../";
+
+$rq->rewind();
+$title = "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
+$rq->next();
+while( $rq->valid() )
 {
-	Template::appendDom( "header", Template::HTMLtoDOM( "<h1>".PageController::getRootResource()->getTitle()."</h1>" ) );
-	Template::appendDom( "body", Template::HTMLtoDOM( <<<EOHTML
+	$prefix = substr( $prefix, 3 );
+	$title .= " - " . "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
+	$rq->next();
+}
+
+\PhenLib\Template::appendDom( "header", \PhenLib\Template::HTMLtoDOM( "<h1>{$title}</h1>" ) );
+
+//TODO - split this off into a displayable resource
+//login status box
+if( \PhenLib\PageController::getRootResourceName() !== "Home" )
+{
+	\PhenLib\Template::appendDom( "content", \PhenLib\Template::HTMLtoDOM( <<<EOHTML
 		<div style="float: right;">Login Status/Logout</div>
 		<div style="clear: both;"></div>
 EOHTML
 		) );
 }
-Template::integrate( "body", PageController::getRootResource() );
-Template::display();
+
+//main body
+\PhenLib\Template::integrate( "content", \PhenLib\PageController::getResourceQueue() );
+
+//debug / display
+//\PhenLib\Template::integrate( "content", new Debug() );
+\PhenLib\Template::display();
 ?>
