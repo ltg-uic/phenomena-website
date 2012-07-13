@@ -26,6 +26,7 @@ class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Acti
 				$msg = "Password Successfully Reset";
 			else
 				$msg = "There was an error resetting your password";
+
 			$recovery_result_popup = <<<EOJAVASCRIPT
 $(document).one('pageshow', function() {
 	triggerDialogFeedback( "{$msg}" );
@@ -33,6 +34,7 @@ $(document).one('pageshow', function() {
 EOJAVASCRIPT;
 			\PhenLib\User::clearRecoveryResult();
 		}
+		$brr = \PhenLib\PageController::getBaseRelativePath();
 		$html = <<<EOHTML
 <script type="text/javascript">
 <!--
@@ -68,7 +70,7 @@ $(document).one('pageinit', function()
 					{	
 						if( jqXHR.responseText === "true" )
 						{
-							$.mobile.changePage( "control-panel/" );
+							$.mobile.changePage( "{$brr}control-panel/" );
 						}
 						else
 						{
@@ -82,6 +84,18 @@ $(document).one('pageinit', function()
 		});
 	});
 
+	
+	//TODO register form focus on popup
+	/*$( "#{$this->id}_dialog-register" ).popup(
+	{
+		opened: function(event, ui) 
+		{
+			alert("hit");
+			console.log("register popup opened"); 
+			var username = $( '#{$this->id}_action_register input[name="username"]' );
+			console.log(username);
+	 	}
+	});*/
 
 	var registerForm = $( "#{$this->id}_action_register" );
 	registerForm.on('submit', function( e ) 
@@ -160,9 +174,9 @@ $(document).one('pageinit', function()
 	<div>
 		<div class="ui-grid-a">
 			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-username" style="margin: 15px 0px;">Username</label></div>
-			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-username" type="text" name="username" required="true"/></div>
+			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-username" type="text" name="username" required="required"/></div>
 			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-password" style="margin: 15px 0px;">Password</label></div>
-			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-password" type="password" name="password" required="true" /></div>
+			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-password" type="password" name="password" required="required" /></div>
 		</div>
 		<input type="submit" name="action_login" value="Login" />
 		<a href="#{$this->id}_dialog-recover" data-role="button" data-rel="popup" data-transition="slideup">Forgot?</a>

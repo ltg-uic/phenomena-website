@@ -2,8 +2,13 @@
 /* CSS Document */
 
 .PhenLib-Displayable {
-/*	border: dotted 1px white;
-	margin: 5px;
-	padding: 5px;*/
 	padding: 15px;
+}
+
+.PhenLib-Displayable > .PhenLib-Displayable:only-child {
+	padding: 0px;
+}
+
+div.ui-content > .PhenLib-Displayable:only-child {
+	padding: 0px;
 }

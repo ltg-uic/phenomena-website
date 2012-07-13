@@ -70,8 +70,6 @@ abstract class PageController
 
 	private static function loadResources()
 	{
-//TODO - needs to recurse template structure, down to bottom-most page, url - do based on page is templatable, url available
-//TODO - template hooks? not here i dont think...
 		self::$resourceQueue = new \SPLQueue();
 		while( ! self::$URIQueue->isEmpty() )
 		{
@@ -94,6 +92,7 @@ abstract class PageController
 			$class = "\\Phen\\{$name}";
 			$res = new $class( self::$URIQueue );
 	
+//TODO - this is incorrect, needs to be full url tree - not just base page name
 			if( $res instanceof Page )
 			{
 				//keep this / last page history

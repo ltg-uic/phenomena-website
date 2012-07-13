@@ -27,6 +27,7 @@ class JQueryMobileTemplate extends \PhenLib\Displayable implements \PhenLib\Temp
 
 		$footerDiv = $rootDoc->createElement( "div" );
 		$footerDiv->setAttribute( "data-role", "footer" );
+		$footerDiv->setAttribute( "class", "ui-bar" );
 		$pageDiv->appendChild( $footerDiv );
 
 		$this->hooks['header'] = $headerDiv;

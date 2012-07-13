@@ -13,7 +13,8 @@ abstract class Authentication
 		//link static vars to session storage
 		if( ! isset( $_SESSION[__CLASS__] ) )
 			$_SESSION[__CLASS__] = array(
-				"authenticated" => FALSE
+				"authenticated" => FALSE,
+				"authenticatedUser" => NULL
 				);
 		self::$session =& $_SESSION[__CLASS__];
 	}
@@ -24,18 +25,26 @@ abstract class Authentication
 
 		$db = Database::connect();
 
-                $sql = "SELECT `user_password`
+                $sql = "SELECT `user_login`, `user_password`
                         FROM `users`
                         WHERE `user_login` = ?";
 
                 $stmt = $db->prepare( $sql );
                 $stmt->bind_param( "s", $user );
                 $stmt->execute();
-                $stmt->bind_result( $stored_hash );
+                $stmt->bind_result( $username, $stored_hash );
                 $stmt->fetch();
                 $stmt->close();
+                self::$session['authenticated'] = HashSSHA512::verify( $pass, $stored_hash );
+		if(self::$session['authenticated'])
+			self::$session['authenticatedUser'] = $username;
+		return self::$session['authenticated'];
+	}
 
-                return self::$session['authenticated'] = HashSSHA512::verify( $pass, $stored_hash );
+	public static function doLogout()
+	{
+		self::$session['authenticatedUser'] = NULL;
+                self::$session['authenticated'] = FALSE;
 	}
 
 	public static function isAuthenticated()
@@ -43,6 +52,12 @@ abstract class Authentication
 		self::init();
 
 		return self::$session['authenticated'];
+	}
+
+	public static function getAuthenticatedUser()
+	{
+		self::init();
+		return self::$session['authenticatedUser'];
 	}
 }
 ?>

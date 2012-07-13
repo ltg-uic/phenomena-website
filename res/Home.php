@@ -39,16 +39,8 @@ class Home extends \PhenLib\Page
 		$root->appendChild( $div );
 
 		$div = $rootDoc->createElement( "div" );
-		$div->appendChild( $rootDoc->createTextNode(
-			"Copyright © 20111\n" .
-			"The Board of Trustees of the University of Illinois"
-			) );
-		$root->appendChild( $div );
-
-		$div = $rootDoc->createElement( "div" );
 		$div->setAttribute( "style", "clear: both;" );
 		$root->appendChild( $div );
-
 	}
 
 	public function getTitle()

@@ -28,7 +28,7 @@ require_once( "lib/php/jaxl/core/jaxl.class.php" );
 $burl = \PhenLib\PageController::getBaseURL();
 \PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
 \PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
-\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.theme.android-1.1.0.css" );
+\PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.theme.css" );
 \PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.structure.css" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery-1.7.2.js" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.mobile.js" );
@@ -36,39 +36,15 @@ $burl = \PhenLib\PageController::getBaseURL();
 //add jquery mobile template
 \PhenLib\Template::integrate( "body", new JQueryMobileTemplate() );
 
-//add elements to template
-$rq = \PhenLib\PageController::getResourceQueue();
-$rqc = $rq->count();
+//add breadcrumbs
+\PhenLib\Template::integrate( "header", new BreadCrumbNavigation() );
 
-
-//TODO - split this off into a displayable resource
-//breadcrumb navigation
-$prefix = "";
-for( $x=0; $x<$rqc-1; $x++ )
-	$prefix .= "../";
-
-$rq->rewind();
-$title = "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
-$rq->next();
-while( $rq->valid() )
-{
-	$prefix = substr( $prefix, 3 );
-	$title .= " - " . "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
-	$rq->next();
-}
-
-\PhenLib\Template::appendDom( "header", \PhenLib\Template::HTMLtoDOM( "<h1>{$title}</h1>" ) );
-
-//TODO - split this off into a displayable resource
-//login status box
-if( \PhenLib\PageController::getRootResourceName() !== "Home" )
-{
-	\PhenLib\Template::appendDom( "content", \PhenLib\Template::HTMLtoDOM( <<<EOHTML
-		<div style="float: right;">Login Status/Logout</div>
-		<div style="clear: both;"></div>
-EOHTML
-		) );
-}
+//add login status (or copyright if not logged in)
+if( \PhenLib\Authentication::isAuthenticated() )
+	\PhenLib\Template::integrate( "footer", new LoginStatus() );
+else
+	\PhenLib\Template::appendDOM( "footer", \PhenLib\Template::HTMLtoDOM( "Copyright © 2011\n" .
+                        "The Board of Trustees of the University of Illinois" ) );
 
 //main body
 \PhenLib\Template::integrate( "content", \PhenLib\PageController::getResourceQueue() );
