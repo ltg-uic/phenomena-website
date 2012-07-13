@@ -13,9 +13,7 @@ class LoginStatus extends \PhenLib\Displayable implements \PhenLib\Action
 		$html = <<<EOHTML
 <script type="text/javascript">
 <!--	
-
 $(document).one('pageinit', function() {
-	console.log( "loginstatus - pageinit" );
 	var logoutButton = $("#{$this->id}_action_logout");
 	logoutButton.on('click', function() {
 		//send logout request
@@ -33,7 +31,6 @@ $(document).one('pageinit', function() {
                 });
 	});
 });
-
 -->
 </script>
 
@@ -49,7 +46,6 @@ EOHTML;
 	{
 		if( isset( $_POST['action_logout'] ) )
 		{
-			//die('logout!');
 			\PhenLib\Authentication::doLogout();
 			exit();	
 		} 
@@ -57,12 +53,10 @@ EOHTML;
 		{
 			throw new \Exception( "missing or invalid action" );	
 		}
-
 	}
 
 	public function getRedirect() {
 		return NULL;
-
 	}
 }
 ?>

@@ -44,6 +44,7 @@ EOJAVASCRIPT;
 triggerDialogFeedback = function( msg ) 
 {
 	var dialogFeedback = $( '#{$this->id}_dialog-feedback' );
+	console.log(dialogFeedback);
 	dialogFeedback.empty();
 	dialogFeedback.append( $( '<span></span>' ).text( msg ) );
 	dialogFeedback.popup( "open" );
@@ -67,7 +68,7 @@ $(document).one('pageinit', function()
 			data: {'action_login': 'Login', 'username': username, 'password': password},
 			datatype: "json",
 			complete: function( jqXHR, status )
-				{ 
+				{
 					if( jqXHR.status === 200 ) 
 					{	
 						if( jqXHR.responseText === "true" )
@@ -116,11 +117,17 @@ $(document).one('pageinit', function()
 			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password},
 			datatype: "json",
 			complete: function( jqXHR, status )
-				{ 
+				{
+					 
+					console.log('complete'); 
 					if( jqXHR.status === 200 ) 
-					{	
-						if( jqXHR.responseText === "true" )
+					{
+						console.log('status 200');	
+						if( jqXHR.responseText === "true" ) 
+						{
+							console.log('response TRUE');	
 							triggerDialogFeedback("Your Registration Was Successful, Please Log In");
+						}
 						else
 							triggerDialogFeedback( "Registration Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" );
 					}

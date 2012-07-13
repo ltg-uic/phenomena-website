@@ -43,6 +43,8 @@ abstract class Authentication
 
 	public static function doLogout()
 	{
+		self::init();
+
 		self::$session['authenticatedUser'] = NULL;
                 self::$session['authenticated'] = FALSE;
 	}
@@ -57,6 +59,7 @@ abstract class Authentication
 	public static function getAuthenticatedUser()
 	{
 		self::init();
+
 		return self::$session['authenticatedUser'];
 	}
 }
