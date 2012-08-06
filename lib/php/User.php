@@ -20,6 +20,8 @@ abstract class User
 
 	public static function create( $user, $pass, $email )
 	{
+		self::init();
+
 //TODO - password minimum complexity
 //TODO - validation
 
@@ -133,6 +135,8 @@ abstract class User
 
 	public static function recoverInitialize( $email, $new_password )
 	{
+		self::init();
+
 		try 
 		{
 			$db = Database::connect();
@@ -199,6 +203,7 @@ abstract class User
 	public static function recoverFinalize( $key )
 	{
 		self::init();
+
 		try 
 		{
 			$db = Database::connect();
@@ -276,6 +281,8 @@ abstract class User
 
 	public static function mailRecoveryKey( $user, $email, $url, $key )
 	{
+		self::init();
+
 		$key = urlencode( $key );
 		$message = 
 			"{$user},\n" .
