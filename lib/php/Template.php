@@ -126,7 +126,6 @@ abstract class Template
 		if( ! isset( self::$hooks[$hook] ) )
 			throw new \Exception( "Invalid hook: '{$hook}'" );
 
-		Displayable::generateAllOutput();
 		self::$hooks[$hook]->appendChild( $dom );
 	}
 

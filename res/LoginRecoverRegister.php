@@ -44,7 +44,6 @@ EOJAVASCRIPT;
 triggerDialogFeedback = function( msg ) 
 {
 	var dialogFeedback = $( '#{$this->id}_dialog-feedback' );
-	console.log(dialogFeedback);
 	dialogFeedback.empty();
 	dialogFeedback.append( $( '<span></span>' ).text( msg ) );
 	dialogFeedback.popup( "open" );
@@ -103,38 +102,63 @@ $(document).one('pageinit', function()
 	var registerForm = $( "#{$this->id}_action_register" );
 	registerForm.on('submit', function( e ) 
 	{
+		//TODO disable duplicate submission
 		//prevent form submission
 		e.preventDefault();
 		e.stopPropagation();
 		var username = $( '#{$this->id}_action_register input[name="username"]' ).prop( "value" );
 		var email = $( '#{$this->id}_action_register input[name="email"]' ).prop( "value" );
 		var password = $( '#{$this->id}_action_register input[name="password"]' ).prop( "value" );
+		var recaptcha_challenge_field = $( '#{$this->id}_action_register input[name="recaptcha_challenge_field"]' ).prop( "value" );
+		var recaptcha_response_field = $( '#{$this->id}_action_register input[name="recaptcha_response_field"]' ).prop( "value" );
 		//send request
 		$.ajax(
 		{
 			url: "LoginRecoverRegister",
 			type: "POST",
-			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password},
+			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password, 'recaptcha_challenge_field': recaptcha_challenge_field, 'recaptcha_response_field': recaptcha_response_field},
 			datatype: "json",
 			complete: function( jqXHR, status )
 				{
-					 
-					console.log('complete'); 
 					if( jqXHR.status === 200 ) 
 					{
-						console.log('status 200');	
-						if( jqXHR.responseText === "true" ) 
-						{
-							console.log('response TRUE');	
-							triggerDialogFeedback("Your Registration Was Successful, Please Log In");
+						if( jqXHR.responseText === "true" )
+						{ 
+							var registerPopup = $( "#{$this->id}_dialog-register" )
+							registerPopup.bind(
+							{
+								popupafterclose: function() 
+								{
+									setTimeout( 'triggerDialogFeedback( "Your Registration Was Successful, Please Log In" )',0 );
+								}
+							});
+							registerPopup.popup( "close" );
 						}
 						else
-							triggerDialogFeedback( "Registration Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" );
+						{
+							var registerPopup = $( "#{$this->id}_dialog-register" )
+							registerPopup.bind(
+							{
+								popupafterclose: function() 
+								{
+									setTimeout( 'triggerDialogFeedback( "Registration Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" )',0 );
+								}
+							});
+							registerPopup.popup( "close" );
+						}
 					}
 				}
-		} ).fail( function()
+		}).fail( function()
+		{
+			var registerPopup = $( "#{$this->id}_dialog-register" );
+			registerPopup.bind(
 			{
-			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
+				popupafterclose: function()
+				{
+					setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )',0 );
+				}
+			});
+			registerPopup.popup( "close" );
 		});
 	});
 	
@@ -163,18 +187,72 @@ $(document).one('pageinit', function()
 					if( jqXHR.status === 200 ) 
 					{	
 						if( jqXHR.responseText === "true" )
-							triggerDialogFeedback("Password Recovery Email Sent, Please Check Your Email");
+						{
+							var recoverPopup = $( "#{$this->id}_dialog-recover" );
+							recoverPopup.bind(
+							{
+								popupafterclose: function()
+								{
+									setTimeout( 'triggerDialogFeedback( "Password Recovery Email Sent, Please Check Your Email" )',0 );
+								}
+							});
+							recoverPopup.popup( "close" );
+						}
 						else
-							triggerDialogFeedback( "Password Recovery Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" );
+						{
+							var recoverPopup = $( "#{$this->id}_dialog-recover" );
+							recoverPopup.bind(
+							{
+								popupafterclose: function()
+								{
+									setTimeout( 'triggerDialogFeedback( "Password Recovery Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" )',0 );
+								}
+							});
+							$( "#{$this->id}_dialog-recover" ).popup( "close" );
+						}
 					}
 				}
 		} ).fail( function()
-			{
-			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
-		
+		{
+				var recoverPopup = $( "#{$this->id}_dialog-recover" );
+				recoverPopup.bind(
+				{
+					popupafterclose: function()
+					{
+						setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )',0 );
+					}
+				});
+				recoverPopup.popup( "close" );
 		});
 	});
-	
+	var recoverPopup = $( "#{$this->id}_dialog-recover" );
+	recoverPopup.bind(
+	{ 
+		popupafteropen: function( event, ui ) 
+		{ 
+			Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}",
+				"recover_recaptcha",
+				{
+					theme: "blackglass",
+					callback: Recaptcha.focus_response_field
+		    		}
+			);
+		} 
+	});
+	var registerPopup = $( "#{$this->id}_dialog-register" );
+	registerPopup.bind(
+	{ 
+		popupafteropen: function( event, ui ) 
+		{ 
+			Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}",
+				"register_recaptcha",
+				{
+					theme: "blackglass",
+					callback: Recaptcha.focus_response_field
+		    		}
+			);
+		}
+	});	
 });
 {$recovery_result_popup}
 -->
@@ -200,6 +278,7 @@ $(document).one('pageinit', function()
 			Email: <input type="text" name="email" /><br />
 			New Password: <input type="password" name="password" /><br />
 			Confirm New Password: <input type="password" name="cpassword" /><br />
+			<div id="recover_recaptcha" style="height: 129px;"></div>
 			<input type="submit" name="action_recover" value="Recover" />
 		</div>
 	</form>
@@ -212,6 +291,7 @@ $(document).one('pageinit', function()
 			Username: <input type="text" name="username" /><br />
 			Email: <input type="text" name="email" /><br />
 			Password: <input type="password" name="password" /><br />
+			<div id="register_recaptcha" style="height: 129px;"></div>
 			<input type="submit" name="action_register" value="Register" />
 		</div>
 	</form>
@@ -243,6 +323,13 @@ EOHTML;
 		}
 		else if( isset( $_POST['action_recover'] ) )
 		{
+			/*
+			if( ! RECAPTCHA::VALIDATE )
+			{
+				json send error array
+				exit
+			}
+			*/
 			if( isset( $_POST['email'] ) && isset( $_POST['password'] ) && \PhenLib\User::recoverInitialize( $_POST['email'], $_POST['password'] ) )
 			{	
 				//json success and exit()
@@ -258,6 +345,13 @@ EOHTML;
 		}
 		else if( isset( $_POST['action_register'] ) )
 		{
+			/*
+			if( ! RECAPTCHA::VALIDATE )
+			{
+				json send error array
+				exit
+			}
+			*/
 			if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && isset( $_POST['email'] ) && \PhenLib\User::create( $_POST['username'], $_POST['password'], $_POST['email'] ) )
 			{
 				//json success and exit()

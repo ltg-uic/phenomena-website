@@ -22,9 +22,42 @@ abstract class User
 	{
 //TODO - password minimum complexity
 //TODO - validation
+
+		/*** ReCaptcha TODO - move this out of user ***/
+		if( isset( $_POST["recaptcha_challenge_field"] ) & isset( $_POST["recaptcha_response_field"] ) )
+		{
+		        //load recaptcha library and set private key
+		        require_once( 'recaptcha/recaptchalib-1.11.php' );
+		        $privatekey = $GLOBALS['recaptchaPrivateKey'];
+				
+		        //send recatchpa
+		        $resp = recaptcha_check_answer ( $privatekey,
+		                                         $_SERVER["REMOTE_ADDR"],
+		                                         $_POST["recaptcha_challenge_field"],
+		                                         $_POST["recaptcha_response_field"]);
+		
+		        //check recatchpa
+		        if ( !$resp->is_valid ) { 
+		               return false;
+				 //send back to referring page, cut off after ?
+		                /*$referer = ( ( $p = strpos( $_SERVER['HTTP_REFERER'], "?" ) ) !== FALSE ) ?
+		                        substr( $_SERVER['HTTP_REFERER'], 0, $p ) : $_SERVER['HTTP_REFERER'];
+		                $error = rawurlencode( $resp->error );
+		                header( "Location: {$referer}?recaptcha_error={$error}" );
+		                exit(0);*/
+		        }
+		}	
+
 		/**** SETUP WEB USER ****/
 
-		$db = Database::connect();
+		try
+		{
+			$db = Database::connect();
+		}
+		catch( \Exception $e )
+		{
+			return FALSE;
+		}
 
 		$sql = "INSERT INTO `phen_website`.`users`
 			(
@@ -100,7 +133,14 @@ abstract class User
 
 	public static function recoverInitialize( $email, $new_password )
 	{
-		$db = Database::connect();
+		try 
+		{
+			$db = Database::connect();
+		} 
+		catch( \Exception $e ) 
+		{
+			return false;
+		}
 
 		$sql = "SELECT `user_id`, `user_login` FROM `phen_website`.`users` WHERE `user_email`= ?";
 
@@ -159,7 +199,14 @@ abstract class User
 	public static function recoverFinalize( $key )
 	{
 		self::init();
-		$db = Database::connect();
+		try 
+		{
+			$db = Database::connect();
+		} 
+		catch( \Exception $e ) 
+		{
+			return false;
+		}
 		//check for valid request
 		$sql = "SELECT `password_recover_id`, `user_id`, `password_recover_new_password`, `password_recover_time`  FROM `phen_website`.`password_recover` WHERE `password_recover_key`=?";
 		$stmt = $db->prepare( $sql );

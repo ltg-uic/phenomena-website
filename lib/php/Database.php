@@ -20,11 +20,17 @@ class Database
 			{
 				if( self::$db->options(MYSQLI_OPT_INT_AND_FLOAT_NATIVE, 1) === FALSE )
 					throw new \Exception( "Database: mysqli_options failed." );
-				if( @self::$db->real_connect( "p:{$GLOBALS['dbHost']}", $GLOBALS['dbUser'], $GLOBALS['dbPass'], $GLOBALS['dbName'] ) === FALSE )
+				//try here to catch error exceptions
+				try
+				{
+					if( @self::$db->real_connect( "p:{$GLOBALS['dbHost']}", $GLOBALS['dbUser'], $GLOBALS['dbPass'], $GLOBALS['dbName'] ) === FALSE )
+						throw new \Exception();
+				}
+				catch( \Exception $e )
 				{
 					$hint = "";
 					if( self::$db->connect_errno === 2002 )
-						$hint = " \nHint: Try restarting apache.";
+						$hint = " - Hint: Try restarting apache.";
 					throw new \Exception( "Database: mysqli_real_connect failed. Mysqli connect error: " . self::$db->connect_error . $hint );
 				}
 				if( self::$db->autocommit( TRUE ) === FALSE )

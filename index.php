@@ -22,15 +22,21 @@ require_once( "lib/php/jaxl/core/jaxl.class.php" );
 //init page controller
 \PhenLib\PageController::init( ( isset( $_GET['uri'] ) ? $_GET['uri'] : NULL ), "home" );
 
+//ua
+$agent = get_browser()->browser;
+
 //=== GENERATE OUTPUT ===
 
 //link resources into header
 $burl = \PhenLib\PageController::getBaseURL();
+if( $agent === "IE" )
+	\PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"X-UA-Compatible\" content=\"IE=edge\" />" ) );
 \PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
 \PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
 \PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.css" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery-1.7.2.js" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.mobile.js" );
+\PhenLib\Template::scriptExternal( "{$burl}lib/js/recaptcha/recaptcha_ajax.js" );
 
 //add jquery mobile template
 \PhenLib\Template::integrate( "body", new JQueryMobileTemplate() );

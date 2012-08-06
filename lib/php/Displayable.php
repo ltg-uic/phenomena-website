@@ -10,8 +10,6 @@ abstract class Displayable
 	private $doc; //master dom document
 	protected $root; //root element to build on
 
-	private static $instances = array();
-
 	public function __construct()
 	{
 		$rootDoc = Template::getDOC();
@@ -40,24 +38,6 @@ abstract class Displayable
 
 		$this->root->setAttribute( "class", str_replace( "\\", "-", substr( $htmlClass, 0, -1 ) ) ); 
 		$this->doc->appendChild( $this->root );
-
-		self::$instances[] = $this;
-	}
-
-	abstract protected function generateOutput();
-
-	public static function generateAllOutput()
-	{
-		for( $x=0; $x<sizeof(self::$instances); $x++ )
-		{
-			$obj = self::$instances[$x];
-			//when called this late - last page is the current page
-			$pagePathIdPrefix = str_replace( "/", "_", PageController::getLastPage() );
-			$obj->id = $pagePathIdPrefix . str_replace( "\\", "-", $obj->className ) . "_" . $obj->counter();
-			$obj->root->setAttribute( "id", $obj->id );
-			$obj->generateOutput();
-		}
-		self::$instances = array();
 	}
 
 	protected function counter()
@@ -68,7 +48,15 @@ abstract class Displayable
 
 	public function getDOC()
 	{
+		//don't calculate unique id until output generation, allows for page path to calculate
+		$pagePathIdPrefix = str_replace( "/", "_", PageController::getLastPage() );
+		$this->id = $pagePathIdPrefix . str_replace( "\\", "-", $this->className ) . "_" . $this->counter();
+		$this->root->setAttribute( "id", $this->id );
+		$this->generateOutput();
 		return $this->doc;
 	}
+
+	//require child classes to implement output generation function
+	abstract protected function generateOutput();
 }
 ?>
