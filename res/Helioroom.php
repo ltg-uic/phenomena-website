@@ -26,7 +26,6 @@ class HelioRoom extends \PhenLib\Page implements \PhenLib\Action
 		\PhenLib\Template::scriptExternal( "{$burl}lib/js/HelioRoomPlanetTable.js" );
 
 		//have config loaded and running on first load, or else animation start bug
-		$xmlConfig = json_encode( $this->getXMLConfig() );
 		$html = <<<EOHTML
 <script type="text/javascript">
 <!--
@@ -41,7 +40,6 @@ $(document).one( "pageinit", function()
 		var control_system_speed = $("#{$this->id}_ss-control-system-speed");
 
 		var HRS = new HelioRoomSimulation( container_planet_table, container_solar_system, control_windows, control_view_angle, control_system_speed, '{$this->id}_' );
-		HRS.loadConfig( {$xmlConfig} );
 
 		//triggered by event eventually
 		HRS.getConfig()

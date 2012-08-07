@@ -16,6 +16,7 @@ require( "lib/php/PHPInternals.php" );
 
 //include 3rd party libraries
 require_once( "lib/php/jaxl/core/jaxl.class.php" );
+require_once( "lib/php/recaptcha/recaptchalib-1.11.php" );
 
 //TODO - SOMEWHERE IMPLEMENT ACCESS RULES BASED ON AUTH
 

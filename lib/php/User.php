@@ -25,41 +25,8 @@ abstract class User
 //TODO - password minimum complexity
 //TODO - validation
 
-		/*** ReCaptcha TODO - move this out of user ***/
-		if( isset( $_POST["recaptcha_challenge_field"] ) & isset( $_POST["recaptcha_response_field"] ) )
-		{
-		        //load recaptcha library and set private key
-		        require_once( 'recaptcha/recaptchalib-1.11.php' );
-		        $privatekey = $GLOBALS['recaptchaPrivateKey'];
-				
-		        //send recatchpa
-		        $resp = recaptcha_check_answer ( $privatekey,
-		                                         $_SERVER["REMOTE_ADDR"],
-		                                         $_POST["recaptcha_challenge_field"],
-		                                         $_POST["recaptcha_response_field"]);
-		
-		        //check recatchpa
-		        if ( !$resp->is_valid ) { 
-		               return false;
-				 //send back to referring page, cut off after ?
-		                /*$referer = ( ( $p = strpos( $_SERVER['HTTP_REFERER'], "?" ) ) !== FALSE ) ?
-		                        substr( $_SERVER['HTTP_REFERER'], 0, $p ) : $_SERVER['HTTP_REFERER'];
-		                $error = rawurlencode( $resp->error );
-		                header( "Location: {$referer}?recaptcha_error={$error}" );
-		                exit(0);*/
-		        }
-		}	
-
 		/**** SETUP WEB USER ****/
-
-		try
-		{
-			$db = Database::connect();
-		}
-		catch( \Exception $e )
-		{
-			return FALSE;
-		}
+		$db = Database::connect();
 
 		$sql = "INSERT INTO `phen_website`.`users`
 			(
@@ -85,7 +52,7 @@ abstract class User
 		
 		if( $result === FALSE ) 
 		{
-			return FALSE;
+			throw new \Exception( "Error Adding New User to Database" );	
 		}
 
 		/**** SETUP XMPP USERS FOR WEB USER ****/
@@ -126,7 +93,7 @@ abstract class User
 				$stmt->bind_param("i", $id);
 				$stmt->execute();
 				$stmt->close();
-				return FALSE;
+				throw new \Exception( "New User Creation, XMPP Error" );
 			}
 		//otherwise close the statement and return true
 		$stmt->close();
@@ -137,27 +104,20 @@ abstract class User
 	{
 		self::init();
 
-		try 
-		{
-			$db = Database::connect();
-		} 
-		catch( \Exception $e ) 
-		{
-			return false;
-		}
+		$db = Database::connect();
 
 		$sql = "SELECT `user_id`, `user_login` FROM `phen_website`.`users` WHERE `user_email`= ?";
 
 		$stmt = $db->prepare( $sql );
 		if( $stmt === FALSE )
-			return FALSE;
+			throw new \Exception( "Password Recovery Error, SQL Error for `users`" );
 		$stmt->bind_param("s", $email);
 		$result = $stmt->execute();
 		//check for valid user
 		if( $result === FALSE )
 		{
 			$stmt->close();
-			return FALSE;
+			throw new \Exception( "Password Recovery Error, User Not Found" );
 		}
 		//get ID and user name		
 		$stmt->bind_result($id, $user);
@@ -183,19 +143,19 @@ abstract class User
 			)";
 		$stmt = $db->prepare( $sql );
 		if( $stmt === FALSE )
-			return FALSE;
+			throw new \Exception( "Password Recovery Error, SQL Error for `password_recover`" );
 		$time = time();
 		$stmt->bind_param("issi", $id, $key, $pass, $time);
 		$result = $stmt->execute();
 		$stmt->close();
 		
 		if( $result === FALSE )
-			return FALSE;
+			throw new \Exception( "Password Recovery Error, SQL insert into `password_recover`" );
 		
 		$url = PageController::getBaseURL()."LoginRecoverRegister/";
 		//send recovery email with link
 		if( !self::MailRecoveryKey( $user, $email, $url, $key ) )
-			return FALSE;
+			throw new \Exception( "Password Recovery Error, Error Mailing Key" );
 		
 		return TRUE;
 	}
@@ -204,14 +164,8 @@ abstract class User
 	{
 		self::init();
 
-		try 
-		{
-			$db = Database::connect();
-		} 
-		catch( \Exception $e ) 
-		{
-			return false;
-		}
+		$db = Database::connect();
+
 		//check for valid request
 		$sql = "SELECT `password_recover_id`, `user_id`, `password_recover_new_password`, `password_recover_time`  FROM `phen_website`.`password_recover` WHERE `password_recover_key`=?";
 		$stmt = $db->prepare( $sql );

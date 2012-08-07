@@ -23,14 +23,8 @@ abstract class Authentication
 	{
 		self::init();
 
-		try 
-		{
-			$db = Database::connect();
-		} 
-		catch( \Exception $e ) 
-		{
-			return false;
-		}
+		$db = Database::connect();
+
                 $sql = "SELECT `user_login`, `user_password`
                         FROM `users`
                         WHERE `user_login` = ?";

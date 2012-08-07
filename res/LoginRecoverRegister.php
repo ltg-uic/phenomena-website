@@ -14,7 +14,7 @@ class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Acti
 		if( $uq !== NULL && ! $uq->isEmpty() )
 		{
 			if( $uq->dequeue() !== "recover" )
-				throw new Exception( "invalid argument" );
+				throw new \Exception( "invalid argument" );
 			$this->recovery_key = $uq->dequeue();
 		}
 	}
@@ -65,23 +65,19 @@ $(document).one('pageinit', function()
 			url: "LoginRecoverRegister",
 			type: "POST",
 			data: {'action_login': 'Login', 'username': username, 'password': password},
-			datatype: "json",
-			complete: function( jqXHR, status )
-				{
-					if( jqXHR.status === 200 ) 
-					{	
-						if( jqXHR.responseText === "true" )
-						{
-							$.mobile.changePage( "{$brr}control-panel/" );
-						}
-						else
-						{
-							triggerDialogFeedback( "Login Error, Please Verify Your Username and Password" );
-						}
-					}
-				}
-		} ).fail( function()
+			dataType: "json",
+		} ).done( function( responseJSON )
+		{
+			if( responseJSON.exception == null )
 			{
+				$.mobile.changePage( "{$brr}control-panel/" );
+			}
+			else
+			{
+				triggerDialogFeedback( responseJSON.message );
+			}
+		} ).fail( function()
+		{
 			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
 		});
 	});
@@ -117,37 +113,43 @@ $(document).one('pageinit', function()
 			url: "LoginRecoverRegister",
 			type: "POST",
 			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password, 'recaptcha_challenge_field': recaptcha_challenge_field, 'recaptcha_response_field': recaptcha_response_field},
-			datatype: "json",
-			complete: function( jqXHR, status )
+			dataType: "json",
+		} ).done( function( responseJSON )
+		{
+			if( responseJSON.exception !== null )
+			{
+				if( responseJSON.exception.type.localeCompare( "PhenLib\RecaptchaException" ) ) 
 				{
-					if( jqXHR.status === 200 ) 
+					Recaptcha.reload();
+					var recaptchaMsg = $('#recaptcha_instructions_image')
+					recaptchaMsg.html( responseJSON.message );
+					recaptchaMsg.css( 'color','#F00' );	
+				}			
+			}
+			else if( responseJSON.message === true )
+			{ 
+				var registerPopup = $( "#{$this->id}_dialog-register" )
+				registerPopup.bind(
+				{
+					popupafterclose: function() 
 					{
-						if( jqXHR.responseText === "true" )
-						{ 
-							var registerPopup = $( "#{$this->id}_dialog-register" )
-							registerPopup.bind(
-							{
-								popupafterclose: function() 
-								{
-									setTimeout( 'triggerDialogFeedback( "Your Registration Was Successful, Please Log In" )',0 );
-								}
-							});
-							registerPopup.popup( "close" );
-						}
-						else
-						{
-							var registerPopup = $( "#{$this->id}_dialog-register" )
-							registerPopup.bind(
-							{
-								popupafterclose: function() 
-								{
-									setTimeout( 'triggerDialogFeedback( "Registration Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" )',0 );
-								}
-							});
-							registerPopup.popup( "close" );
-						}
+						setTimeout( 'triggerDialogFeedback( "Your Registration Was Successful, Please Log In" )',0 );
 					}
-				}
+				});
+				registerPopup.popup( "close" );
+			}
+			else
+			{
+				var registerPopup = $( "#{$this->id}_dialog-register" )
+				registerPopup.bind(
+				{
+					popupafterclose: function() 
+					{
+						setTimeout( function() {  triggerDialogFeedback( responseJSON.message ) },0 );
+					}
+				});
+				registerPopup.popup( "close" );
+			}
 		}).fail( function()
 		{
 			var registerPopup = $( "#{$this->id}_dialog-register" );
@@ -163,7 +165,7 @@ $(document).one('pageinit', function()
 	});
 	
 	var recoverForm = $( "#{$this->id}_action_recover" );
-	recoverForm.on('submit', function( e ) 
+	recoverForm.on( 'submit', function( e ) 
 	{
 		//prevent form submission
 		e.preventDefault();
@@ -171,6 +173,8 @@ $(document).one('pageinit', function()
 		var email = $( '#{$this->id}_action_recover input[name="email"]' ).prop( "value" );
 		var password = $( '#{$this->id}_action_recover input[name="password"]' ).prop( "value" );
 		var cpassword = $( '#{$this->id}_action_recover input[name="cpassword"]' ).prop( "value" );
+		var recaptcha_challenge_field = $( '#{$this->id}_action_recover input[name="recaptcha_challenge_field"]' ).prop( "value" );
+		var recaptcha_response_field = $( '#{$this->id}_action_recover input[name="recaptcha_response_field"]' ).prop( "value" );
 		if( password !== cpassword ) {
 			triggerDialogFeedback( "Passwords Do Not Match" );
 			return;
@@ -180,38 +184,44 @@ $(document).one('pageinit', function()
 		{
 			url: "LoginRecoverRegister",
 			type: "POST",
-			data: {'action_recover': 'Recover', 'email': email, 'password': password },
-			datatype: "json",
-			complete: function( jqXHR, status )
-				{ 
-					if( jqXHR.status === 200 ) 
-					{	
-						if( jqXHR.responseText === "true" )
-						{
-							var recoverPopup = $( "#{$this->id}_dialog-recover" );
-							recoverPopup.bind(
-							{
-								popupafterclose: function()
-								{
-									setTimeout( 'triggerDialogFeedback( "Password Recovery Email Sent, Please Check Your Email" )',0 );
-								}
-							});
-							recoverPopup.popup( "close" );
-						}
-						else
-						{
-							var recoverPopup = $( "#{$this->id}_dialog-recover" );
-							recoverPopup.bind(
-							{
-								popupafterclose: function()
-								{
-									setTimeout( 'triggerDialogFeedback( "Password Recovery Error, Please Try Again. If You Continue To Have Problems Please Contact the Phenomena Team" )',0 );
-								}
-							});
-							$( "#{$this->id}_dialog-recover" ).popup( "close" );
-						}
+			data: {'action_recover': 'Recover', 'email': email, 'password': password, 'recaptcha_challenge_field': recaptcha_challenge_field, 'recaptcha_response_field': recaptcha_response_field},
+			dataType: "json",
+		} ).done( function( responseJSON )
+		{ 
+			if( responseJSON.exception !== null )
+			{
+				if( responseJSON.exception.type.localeCompare( "PhenLib\RecaptchaException" ) ) 
+				{
+					Recaptcha.reload();
+					var recaptchaMsg = $('#recaptcha_instructions_image')
+					recaptchaMsg.html( responseJSON.message );
+					recaptchaMsg.css( 'color','#F00' );	
+				}			
+			}
+			else if( responseJSON.message === true  )
+			{
+				var recoverPopup = $( "#{$this->id}_dialog-recover" );
+				recoverPopup.bind(
+				{
+					popupafterclose: function()
+					{
+						setTimeout( 'triggerDialogFeedback( "Password Recovery Email Sent, Please Check Your Email" )',0 );
 					}
-				}
+				});
+				recoverPopup.popup( "close" );
+			}
+			else
+			{
+				var recoverPopup = $( "#{$this->id}_dialog-recover" );
+				recoverPopup.bind(
+				{
+					popupafterclose: function()
+					{
+						setTimeout( function() { triggerDialogFeedback( responseJSON.message ) },0 );
+					}
+				});
+				$( "#{$this->id}_dialog-recover" ).popup( "close" );
+			}
 		} ).fail( function()
 		{
 				var recoverPopup = $( "#{$this->id}_dialog-recover" );
@@ -308,60 +318,89 @@ EOHTML;
 	{
 		if( isset( $_POST['action_login'] ) )
 		{
-			if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && \PhenLib\Authentication::doLogin( $_POST['username'], $_POST['password'] ) )
+			try
 			{
-				//json success and exit()
-				\PhenLib\JSON::encode_send( TRUE );
-				exit();
+				if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && \PhenLib\Authentication::doLogin( $_POST['username'], $_POST['password'] ) )
+				{
+					//json success and exit()
+					\PhenLib\JSON::encode_send( TRUE );
+					exit();
+				}
+				else
+				{
+					throw new \Exception("User Authentication Failed");
+				}
 			}
-			else
+			catch( \Exception $e )
 			{
-				//json fail and exit()
-				\PhenLib\JSON::encode_send( FALSE );
+				\PhenLib\JSON::encode_send( $e );
 				exit();
 			}
 		}
 		else if( isset( $_POST['action_recover'] ) )
 		{
-			/*
-			if( ! RECAPTCHA::VALIDATE )
+			try
 			{
-				json send error array
-				exit
+				//check recaptcha
+				if( isset( $_POST["recaptcha_challenge_field"] ) & isset( $_POST["recaptcha_response_field"] ) )
+				{
+					$error = \PhenLib\reCAPTCHA::Validate(
+						$GLOBALS['recaptchaPrivateKey'], $_SERVER["REMOTE_ADDR"],
+						$_POST["recaptcha_challenge_field"], $_POST["recaptcha_response_field"] );
+		
+					//check recatchpa
+					if ( !$error->is_valid ) 
+					{ 
+						throw new \PhenLib\RecaptchaException($error->error);
+					}
+				}
+	
+				if( isset( $_POST['email'] ) && isset( $_POST['password'] ) && \PhenLib\User::recoverInitialize( $_POST['email'], $_POST['password'] ) )
+				{	
+					//json success and exit()
+					\PhenLib\JSON::encode_send( TRUE );
+					exit();
+				}
+				else
+				{	
+					throw new \Exception("Password Recovery Failed");
+				}
 			}
-			*/
-			if( isset( $_POST['email'] ) && isset( $_POST['password'] ) && \PhenLib\User::recoverInitialize( $_POST['email'], $_POST['password'] ) )
-			{	
-				//json success and exit()
-				\PhenLib\JSON::encode_send( TRUE );
+			catch( \Exception $e )
+			{
+				\PhenLib\JSON::encode_send( $e );
 				exit();
 			}
-			else
-			{	
-				//json fail and exit()
-				\PhenLib\JSON::encode_send( FALSE );
-				exit();
-			}		
 		}
 		else if( isset( $_POST['action_register'] ) )
 		{
-			/*
-			if( ! RECAPTCHA::VALIDATE )
+			try 
 			{
-				json send error array
-				exit
+				if( isset( $_POST["recaptcha_challenge_field"] ) & isset( $_POST["recaptcha_response_field"] ) )
+				{
+					$error = \PhenLib\reCAPTCHA::Validate( $GLOBALS['recaptchaPrivateKey'], $_SERVER["REMOTE_ADDR"], $_POST["recaptcha_challenge_field"], $_POST["recaptcha_response_field"] );
+		
+					//check recatchpa
+					if ( !$error->is_valid ) 
+					{ 
+						throw new \PhenLib\RecaptchaException($error->error);
+					}
+				}	
+
+				if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && isset( $_POST['email'] ) && \PhenLib\User::create( $_POST['username'], $_POST['password'], $_POST['email'] ) )
+				{
+					//json success and exit()
+					\PhenLib\JSON::encode_send( TRUE );
+					exit();
+				}
+				else
+				{
+					throw new \Exception("New User Creation Failed");
+				}
 			}
-			*/
-			if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && isset( $_POST['email'] ) && \PhenLib\User::create( $_POST['username'], $_POST['password'], $_POST['email'] ) )
+			catch( \Exception $e )
 			{
-				//json success and exit()
-				\PhenLib\JSON::encode_send( TRUE );
-				exit();
-			}
-			else
-			{
-				//json fail and exit()
-				\PhenLib\JSON::encode_send( FALSE );
+				\PhenLib\JSON::encode_send( $e );
 				exit();
 			}
 		}
