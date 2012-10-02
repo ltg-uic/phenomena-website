@@ -21,7 +21,7 @@ $(document).one('pageinit', function() {
                 {
                         url: "LoginStatus",
                         type: "POST",
-                        data: {'action_logout': 'Logout'},
+                        data: {'action_logout': 'Logout', 'id': "{$this->id}" },
                         datatype: "json",
                         complete: function( jqXHR, status ) 
 				{

@@ -23,20 +23,21 @@ require_once( "lib/php/recaptcha/recaptchalib-1.11.php" );
 //init page controller
 \PhenLib\PageController::init( ( isset( $_GET['uri'] ) ? $_GET['uri'] : NULL ), "home" );
 
-//ua
-$agent = get_browser()->browser;
-
 //=== GENERATE OUTPUT ===
 
 //link resources into header
+$agent = get_browser()->browser;
 $burl = \PhenLib\PageController::getBaseURL();
 if( $agent === "IE" )
 	\PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"X-UA-Compatible\" content=\"IE=edge\" />" ) );
-\PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
 \PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ) );
+//TODO - better favicon
+\PhenLib\Template::appendDOM( "head", \PhenLib\Template::HTMLtoDOM( "<link rel=\"shortcut icon\" href=\"{$burl}favicon.ico\" />" ) );
+\PhenLib\Template::linkCSS( "{$burl}lib/css/phenomena.css" );
 \PhenLib\Template::linkCSS( "{$burl}lib/css/jquery/jquery.mobile.css" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery-1.7.2.js" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.mobile.js" );
+\PhenLib\Template::scriptExternal( "{$burl}lib/js/jquery/jquery.validate.js" );
 \PhenLib\Template::scriptExternal( "{$burl}lib/js/recaptcha/recaptcha_ajax.js" );
 
 //add jquery mobile template
@@ -45,6 +46,7 @@ if( $agent === "IE" )
 //add breadcrumbs
 \PhenLib\Template::integrate( "header", new BreadCrumbNavigation() );
 
+//TODO integrate into new template
 //add login status (or copyright if not logged in)
 if( \PhenLib\Authentication::isAuthenticated() )
 	\PhenLib\Template::integrate( "footer", new LoginStatus() );

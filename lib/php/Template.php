@@ -75,6 +75,7 @@ abstract class Template
 		$script = self::$doc->createElement( "script" );
 		$script->setAttribute( "type", "text/javascript" );
 		$script->setAttribute( "src", $js );
+		$script->setAttribute( "charset", "utf-8" );
 		self::$hooks['head']->appendChild( $script );
 	}
 
@@ -143,25 +144,30 @@ abstract class Template
 	{
 		self::init();
 
-		//TODO 	- follow up on this, choose a better name, input id at top of form instead of bottom
-		//	- WARN:  this will likely not work when actions are inside of other actions (shouldnt happen but add a check sometime)
+//TODO - CAN THIS BE DONE VIA EXISTING DOM HOOKS? (LIKE PER-ACTION?)
+		//TODO 	- follow up on this, choose a better name (than 'id')
 		$xp = new \DOMXPath( self::$doc );
-		$actionDivs = $xp->query( "//div[contains(concat(' ',normalize-space(@class),' '),' PhenLib-Action ')]" );
+		$actionDivPredicate = "contains(concat(' ',normalize-space(@class),' '),' PhenLib-Action ')";
+		$actionDivs = $xp->query( "//div[{$actionDivPredicate}]" );
 		foreach( $actionDivs as $actionDiv )
 		{
 			$id = $actionDiv->getAttribute( "id" );
 
-			$input = self::$doc->createElement( "input" );
-			$input->setAttribute( "type", "hidden" );
-			$input->setAttribute( "name", "id" );
-			$input->setAttribute( "value", $id );
-
-			$fieldset = self::$doc->createElement( "fieldset" );
-			$fieldset->appendChild( $input );
-
-			$forms = $xp->query( "//div[@id='{$id}']/form" );
+			//selects forms only inside this action, and not inside any potentially nested actions
+			//TODO - can this query be optimized better?
+			$forms = $xp->query( "//div[@id='{$id}']//*[not({$actionDivPredicate})]//form | //div[@id='{$id}']/form" );
 			foreach( $forms as $form )
-				$form->appendChild( $fieldset );
+			{
+				$input = self::$doc->createElement( "input" );
+				$input->setAttribute( "type", "hidden" );
+				$input->setAttribute( "name", "id" );
+				$input->setAttribute( "value", $id );
+
+				$fieldset = self::$doc->createElement( "fieldset" );
+				$fieldset->appendChild( $input );
+
+				$form->insertBefore( $fieldset, ( $form->hasChildNodes() ? $form->firstChild : NULL ) );
+			}
 		}
 		
 		self::$doc->saveHTMLFile( "php://output" );

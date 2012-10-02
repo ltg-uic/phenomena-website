@@ -3,21 +3,6 @@ namespace Phen;
 
 class HelioRoom extends \PhenLib\Page implements \PhenLib\Action
 {
-	private $action;
-
-	public function __construct( \SPLQueue $uq = NULL )
-	{
-		parent::__construct();
-
-		//get action from url, if present
-		$this->action = NULL;
-		if( $uq !== NULL && ! $uq->isEmpty() )
-		{
-			if( ( $this->action = $uq->dequeue() ) !== "getConfig" )
-				throw new Exception( "invalid argument" );
-		}
-	}
-
 	public function generateOutput()
 	{
 		$burl = \PhenLib\PageController::getBaseURL();
@@ -39,7 +24,7 @@ $(document).one( "pageinit", function()
 		var control_view_angle = $("#{$this->id}_ss-control-view-angle");
 		var control_system_speed = $("#{$this->id}_ss-control-system-speed");
 
-		var HRS = new HelioRoomSimulation( container_planet_table, container_solar_system, control_windows, control_view_angle, control_system_speed, '{$this->id}_' );
+		var HRS = new HelioRoomSimulation( container_planet_table, container_solar_system, control_windows, control_view_angle, control_system_speed, '{$this->id}' );
 
 		//triggered by event eventually
 		HRS.getConfig()
@@ -97,13 +82,12 @@ EOHTML;
 	
 	public function execute()
 	{
-		if( $this->action === NULL )
-			return;
-		if( $this->action === "getConfig" )
-			\PhenLib\XML::send( $this->getXMLConfig() );
-		else
-			throw new \Exception( "missing or invalid action" );
-		exit();
+		if( isset( $_POST['action'] ) && $_POST['action'] === "get_config" )
+		{
+			\PhenLib\XML::send( $this->getInstanceConfig() );
+			exit();
+		}
+		throw new \Exception( "HelioRoom: Missing or invalid action" );
 	}
 
 	public function getRedirect()
@@ -112,9 +96,37 @@ EOHTML;
 		return NULL;
 	}
 
-	private function getXMLConfig()
+	private function initInstance()
 	{
+		//read xml flat file
+		//use admin channel to create:
+		//- instance --- GUGO HELP
+		//- master user (included in instance config message) - is main id of message, don't send password attribute
+			//- ACTUALLY - JUST SEND ID, PHEN SERVER MANAGES THIS USER
+		//- cp user
+		//- other users (IF DEFINED INTHE CONFIG)
+		//- window users (DONE ONLY ON THE FLY AS NEEDED - CAN NEVER KNOW MAX, HAVE TO CREATE ON FLY)
+		// ALL USERS MUST BE ADDED TO INSTANCE (PER USER WORK FOR EACH ADDITION)
+			// - ALL USERS (EXCEPT MASTER) ADDED TO MASTER's ROSTER
+			// - MASTER IS ADDED TO ALL USER'S ROSTERS (EXCEPT MASTER)
+			// - SUBSCRIPTION = BOTH
+			// XEP-0144: Roster Item Exchange
+	}
+
+	private function getInstanceConfig()
+	{
+		//reset admin window password, don't cache and reuse
+		//connect to xmpp with cp user,
+		// establish presence, --- GUGO HELP
+		//get config -- GUGO HELP
+		//write back to ajax request
+
 		return file_get_contents( "lib/xml/HelioRoomSimulationExampleData.xml" );
+	}
+
+	private function updatetInstanceConfig()
+	{
+		//connect to xmpp, sent update --- GUGO HELP
 	}
 }
 ?>

@@ -6,6 +6,7 @@ abstract class PageController
 	private static $session = NULL;
 	private static $initDone = FALSE;
 	private static $URIQueue = NULL;
+	private static $URIRaw = NULL;
 	private static $URIRawDepth = NULL;
 	private static $baseURL = NULL;
 	private static $baseRelativePath = NULL;
@@ -15,23 +16,24 @@ abstract class PageController
 
 	public static function init( $uri = NULL, $default = NULL )
 	{
-		Session::start();
-
-		//link static vars to session storage
-		if( ! isset( $_SESSION[__CLASS__] ) )
-			$_SESSION[__CLASS__] = array(
-				'lastPage' => NULL
-				);
-		self::$session =& $_SESSION[__CLASS__];
-
-		//one time init
+		//init only performs on first call
 		if( self::$initDone === FALSE )
 		{
+			Session::start();
+
+			//link static vars to session storage
+			if( ! isset( $_SESSION[__CLASS__] ) )
+				$_SESSION[__CLASS__] = array(
+					'lastPage' => "/"
+					);
+			self::$session =& $_SESSION[__CLASS__];
+
 			//validity checks
 			if( $default === NULL )
 				throw new \Exception( "PageController must be initialized before use" );
 
 			//build queue of uri
+			self::$URIRaw = $uri;
 			self::$URIRawDepth = 0;
 			if( $uri === NULL || $uri === "" )
 			{
@@ -54,6 +56,8 @@ abstract class PageController
 
 	private static function calculatePaths()
 	{
+		//DO NOT INIT(), IS SUB-CALL OF INIT()
+
 		//get the raw URI path depth and create relative path to root
 		self::$baseRelativePath = "";
 		for( $x=0; $x<self::$URIRawDepth; $x++ )
@@ -70,8 +74,15 @@ abstract class PageController
 
 	private static function loadResources()
 	{
+//TODO	THIS LOGIC WILL CHANGE SUBSTANTIALLY DUE TO NEW GET/POST PARADIGM
+//	- DISPLAY ONLY HAPPENS ON GET
+//	- ACTION ONLY HAPPENS ON POST
+
+		//DO NOT INIT(), IS SUB-CALL OF INIT()
+
 		self::$resourceQueue = new \SPLQueue();
-		self::$session['lastPage'] = "";
+		if( $_SERVER['REQUEST_METHOD'] === "GET" )
+			self::$session['lastPage'] = "";
 		while( ! self::$URIQueue->isEmpty() )
 		{
 			//determine class name from url
@@ -84,30 +95,44 @@ abstract class PageController
 			if( ! is_readable( "res/{$name}.php" ) )
 			{
 				header( "HTTP/1.1 404 Not Found" );
-				$message = "<h1>HTTP/1.1 404 Not Found</h1>";
-				$message .= print_r( self::$URIQueue, true );
-				$message .= $name;
+				$message = "<h1>HTTP/1.1 404 Not Found</h1>\n";
+				$message .= "URI: /". self::$URIRaw . "<br />\n";
+				$message .= "Resource Name: {$name}";
 				exit( $message );
 			}
 
+			//for actions (POSTS), skip to last resource
+			if( $_SERVER['REQUEST_METHOD'] === "POST" && ! self::$URIQueue->isEmpty() )
+				continue;
+
 			//instantiate resource
+			//send clone of URIQueue enforce read only
 			$class = "\\Phen\\{$name}";
-			$res = new $class( self::$URIQueue );
+			$res = new $class( clone self::$URIQueue );
 	
-			if( $res instanceof Page )
-			{
-				//keep this / last page history
+//TODO - evaluate if lastpage is in proper place, functionality
+			//keep this / last page history
+			if( $_SERVER['REQUEST_METHOD'] === "GET" && $res instanceof Page )
 				self::$session['lastPage'] .= "{$rawName}/";
-			}
-	
-			if( $res instanceof Action )
+
+			//will only hit for last res
+			if( $_SERVER['REQUEST_METHOD'] === "POST" && $res instanceof Action )
 			{
+				//restore ID (will probably always be NULL)
+				if( $res->getID() === NULL )
+				{
+					if( isset( $_POST['id'] ) )
+						$res->setID( $_POST['id'] );
+					else
+						throw new \Exception( "Uninitialized \$this->id in Action: {$class}" );
+				}
 				$res->execute();
 				if( ( $dest = $res->getRedirect() ) !== NULL )
 				{
 					header( "Location: {$dest}" );
 					exit();
 				}
+				continue;
 			}
 
 			self::$resourceQueue->enqueue( $res );

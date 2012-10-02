@@ -16,13 +16,16 @@ class BreadCrumbNavigation extends \PhenLib\Displayable
 		for( $x=0; $x<$rqc-1; $x++ )
 		        $prefix .= "../";
 		
+		$title = "";
 		$rq->rewind();
-			$title = "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
+		if( $rq->current() instanceof \PhenLib\Page )
+			$title .= "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
 		$rq->next();
 		while( $rq->valid() )
 		{
 		        $prefix = substr( $prefix, 3 );
-		        $title .= " - " . "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
+			if( $rq->current() instanceof \PhenLib\Page )
+			        $title .= " - " . "<a href=\"{$prefix}\">" . $rq->current()->getTitle() . "</a>";
 		        $rq->next();
 		}
 

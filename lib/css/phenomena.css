@@ -16,3 +16,7 @@ body {
 div.ui-content > .PhenLib-Displayable:only-child {
 	padding: 0px;
 }
+
+label.error {
+	color: red;
+}

@@ -21,9 +21,12 @@ abstract class User
 	public static function create( $user, $pass, $email )
 	{
 		self::init();
-
+		
 //TODO - password minimum complexity
-//TODO - validation
+		//validation
+		if( strlen($user) < 1 || strlen($pass) < 1 || strlen($email) < 1 )
+			throw new \Exception( "Error Creating User : Missing Fields" );
+		
 
 		/**** SETUP WEB USER ****/
 		$db = Database::connect();
@@ -52,25 +55,38 @@ abstract class User
 		
 		if( $result === FALSE ) 
 		{
-			throw new \Exception( "Error Adding New User to Database" );	
+			throw new \Exception( "Error Adding New User to Database: ". $db->error );	
 		}
 
 		/**** SETUP XMPP USERS FOR WEB USER ****/
 
-		$windows = 4;
+
+//HIGHEST PRECEDENCE COMMENT:
+// WE ARE ONLY GETTING LIST OF PHENS, SAVING IN DB WITH INIT FLAG = FALSE, NO XMPP WORK
+// XMPP USER NAMES ARE EQUIVALENT TO INSTANCE ID + NAME, FORMAT MUST BE ADHERED TO
+//ONLY CREATE WE USER HERE - DO NOTHING WITH XMPP
+
+
+		//TODO - also create a master window user that the web conf uses to connect to the instance with
+		//window	format is PhenName_UserID_w#
+		//control panel format is PhenName_UserID_cp
+		// NOT CREATING CP USER HERE - ALL OTHERS NOW ON THE FLY
+		// SAVE AN INITED FLAG IF EACH USER, INSTANCE PAIR IS YET INITIALIZED
+
+		$windows = 8;
 
 		//echo "Setting up user id: {$id}<br />";
 		//get phenomenas from pod server, update db
 		//right now we just get from db until a query to the server works
 
-		$db->real_query( "SELECT * FROM `phenomenas`" );
+//		$db->real_query( "SELECT * FROM `phenomenas`" );
 
-		$res = $db->store_result();
+//		$res = $db->store_result();
 		$xmpp = new XMPPJAXL();
-		while( $row = $res->fetch_assoc() )
-			for( $x=0; $x<$windows; $x++ )
+//		while( $row = $res->fetch_assoc() )
+			for( $x=1; $x<=$windows; $x++ )
 			{
-				$xmpp_user = "{$row['phenomena_name']}_{$id}_{$x}";
+				$xmpp_user = "Helioroom_{$id}_w{$x}";
 				XMPPServiceAdministration::addUser( $xmpp, $xmpp_user, $GLOBALS['xmppDomain'], Password::generateRandom(), $added[$xmpp_user] );
 			}
 		//TODO - fix JAXL library so error handling does not need to be turned off
@@ -80,7 +96,7 @@ abstract class User
 		//echo "users added:<br />\n";
 		//var_export( $added );
 		//echo $xmpp->getErrors();
-		$res->free();
+//		$res->free();
 
 		//exit();
 		//check each XMPP user createdreturn remove user and return false if there was an error
@@ -104,24 +120,32 @@ abstract class User
 	{
 		self::init();
 
+		//validation
+		if( strlen($email) < 1 || strlen($new_password) < 1 )
+			throw new \Exception( "Password Recover Error : Missing Fields" );
+
 		$db = Database::connect();
 
 		$sql = "SELECT `user_id`, `user_login` FROM `phen_website`.`users` WHERE `user_email`= ?";
 
 		$stmt = $db->prepare( $sql );
 		if( $stmt === FALSE )
-			throw new \Exception( "Password Recovery Error, SQL Error for `users`" );
+			throw new \Exception( "Password Recovery Error, SQL Error for `users`: " . $db->error );
 		$stmt->bind_param("s", $email);
 		$result = $stmt->execute();
 		//check for valid user
 		if( $result === FALSE )
 		{
 			$stmt->close();
-			throw new \Exception( "Password Recovery Error, User Not Found" );
+			throw new \Exception( "Password Recovery Error, SQL Error for `users`: " . $db->error );
 		}
 		//get ID and user name		
 		$stmt->bind_result($id, $user);
-		$stmt->fetch();
+		if( $stmt->fetch() !== TRUE )
+		{
+			$stmt->close();
+			throw new \Exception( "Password Recovery Error: Invalid Email" );
+		}
 		$stmt->close();
 
 		//generate key and urlencode
@@ -143,19 +167,18 @@ abstract class User
 			)";
 		$stmt = $db->prepare( $sql );
 		if( $stmt === FALSE )
-			throw new \Exception( "Password Recovery Error, SQL Error for `password_recover`" );
+			throw new \Exception( "Password Recovery Error, SQL Error for `password_recover`: " . $db->error);
 		$time = time();
 		$stmt->bind_param("issi", $id, $key, $pass, $time);
 		$result = $stmt->execute();
 		$stmt->close();
 		
 		if( $result === FALSE )
-			throw new \Exception( "Password Recovery Error, SQL insert into `password_recover`" );
+			throw new \Exception( "Password Recovery Error, SQL insert into `password_recover`: " . $db->error);
 		
 		$url = PageController::getBaseURL()."LoginRecoverRegister/";
 		//send recovery email with link
-		if( !self::MailRecoveryKey( $user, $email, $url, $key ) )
-			throw new \Exception( "Password Recovery Error, Error Mailing Key" );
+		self::MailRecoveryKey( $user, $email, $url, $key );
 		
 		return TRUE;
 	}
@@ -244,12 +267,14 @@ abstract class User
 			"You have requested to reset your password for the Phenomenon Server.\n" .
 			"\n" .
 			"Please click the following link to confirm your request:\n" .
-			"{$url}recover/{$key}\n" .
+			"{$url}?recovery_key={$key}\n" .
 			"\n" .
 			"Thank you,\n" . 
 			"The Phenomenon Server";
 
-		return mail( "{$user} <{$email}>", "Phenomenon Server Password Recovery", $message, "From: Phenomenon Server <server@phenomena.evl.uic.edu>\r\n" );
+		$ret = mail( "{$user} <{$email}>", "Phenomenon Server Password Recovery", $message, "From: Phenomenon Server <server@phenomena.evl.uic.edu>\r\n" );
+		if( !$ret )
+			throw new \Exception( "Unable to send through local MTA" );
 	}
 }
 ?>

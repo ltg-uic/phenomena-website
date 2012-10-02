@@ -36,7 +36,7 @@ abstract class JSON
 	public static function encode_send_raw( $data )
 	{
 		header('Content-Type: application/json; charset=utf-8');
-		$json = json_encode( $data );
+		$json = json_encode( $data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
 		header("Content-length: " . strlen( $json ) );
 		echo $json;
 	}

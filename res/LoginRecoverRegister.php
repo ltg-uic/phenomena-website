@@ -3,19 +3,20 @@ namespace Phen;
 
 class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Action
 {
-	private $recovery_key;
-
-	public function __construct( \SPLQueue $uq = NULL )
+	public function __construct()
 	{
 		parent::__construct();
 
-		//get recovery key from url, if present
-		$this->recovery_key = NULL;
-		if( $uq !== NULL && ! $uq->isEmpty() )
+//TODO	- user feedback on recovery
+//	- move processing to javascript section, post to execute, json response
+//	- eliminate gimmicky getRecoveryResult
+//	- should fix the popup not going away on load
+		//process recovery key
+		if( isset( $_GET['recovery_key'] ) )
 		{
-			if( $uq->dequeue() !== "recover" )
-				throw new \Exception( "invalid argument" );
-			$this->recovery_key = $uq->dequeue();
+			\PhenLib\User::recoverFinalize( $_GET['recovery_key'] );
+			header( "Location: ../" );
+			exit();
 		}
 	}
 
@@ -29,21 +30,23 @@ class LoginRecoverRegister extends \PhenLib\Displayable implements \PhenLib\Acti
 			else
 				$msg = "There was an error resetting your password";
 
-			$recovery_result_popup = <<<EOJAVASCRIPT
-$(document).one('pageshow', function() {
-	triggerDialogFeedback( "{$msg}" );
+			$recovery_result_popup =
+<<<EOJAVASCRIPT
+$(document).one('pagechange', function() {
+	setTimeout( function(){ triggerDialogFeedback( "{$msg}" ) }, 500 );
 });
 EOJAVASCRIPT;
 			\PhenLib\User::clearRecoveryResult();
 		}
 		$brr = \PhenLib\PageController::getBaseRelativePath();
-		$html = <<<EOHTML
+		$html =
+<<<EOHTML
 <script type="text/javascript">
 <!--
 
 triggerDialogFeedback = function( msg ) 
 {
-	var dialogFeedback = $( '#{$this->id}_dialog-feedback' );
+	var dialogFeedback = $( '#{$this->id}dialog-feedback' );
 	dialogFeedback.empty();
 	dialogFeedback.append( $( '<span></span>' ).text( msg ) );
 	dialogFeedback.popup( "open" );
@@ -51,215 +54,211 @@ triggerDialogFeedback = function( msg )
 
 $(document).one('pageinit', function() 
 {
-	var loginForm = $( "#{$this->id}_action_login" );
-	loginForm.on('submit', function( e ) 
+	var loginForm = $( "#{$this->id}form-login" );
+	loginForm.validate(
 	{
-		//prevent form submission
-		e.preventDefault();
-		e.stopPropagation();
-		var username = $( '#{$this->id}_action_login input[name="username"]' ).prop( "value" );
-		var password = $( '#{$this->id}_action_login input[name="password"]' ).prop( "value" );
-		//send request
-		$.ajax(
-		{
-			url: "LoginRecoverRegister",
-			type: "POST",
-			data: {'action_login': 'Login', 'username': username, 'password': password},
-			dataType: "json",
-		} ).done( function( responseJSON )
-		{
-			if( responseJSON.exception == null )
+		submitHandler: function(form, validator) 
+		{		
+			//send request
+			$.ajax(
 			{
-				$.mobile.changePage( "{$brr}control-panel/" );
-			}
-			else
+				url: "LoginRecoverRegister",
+				type: "POST",
+				data: loginForm.serialize(),
+				dataType: "json",
+			} ).done( function( responseJSON )
 			{
-				triggerDialogFeedback( responseJSON.message );
-			}
-		} ).fail( function()
-		{
-			triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
-		});
-	});
+				if( responseJSON.exception === null )
+				{
+					$.mobile.changePage( "{$brr}control-panel/" );
+				}
+				else
+				{
+					triggerDialogFeedback( responseJSON.message );
+				}
+			} ).fail( function()
+			{
+				triggerDialogFeedback( "Error Communicating With Server, Please Try Again" );	
+			});
+		}
 
+	});
 	
 	//TODO register form focus on popup
-	/*$( "#{$this->id}_dialog-register" ).popup(
+	/*$( "#{$this->id}dialog-register" ).popup(
 	{
 		opened: function(event, ui) 
 		{
 			alert("hit");
 			console.log("register popup opened"); 
-			var username = $( '#{$this->id}_action_register input[name="username"]' );
+			var username = $( '#{$this->id}form-register input[name="username"]' );
 			console.log(username);
 	 	}
 	});*/
 
-	var registerForm = $( "#{$this->id}_action_register" );
-	registerForm.on('submit', function( e ) 
+	var registerForm = $( "#{$this->id}form-register" );
+	registerForm.validate(
 	{
-		//TODO disable duplicate submission
-		//prevent form submission
-		e.preventDefault();
-		e.stopPropagation();
-		var username = $( '#{$this->id}_action_register input[name="username"]' ).prop( "value" );
-		var email = $( '#{$this->id}_action_register input[name="email"]' ).prop( "value" );
-		var password = $( '#{$this->id}_action_register input[name="password"]' ).prop( "value" );
-		var recaptcha_challenge_field = $( '#{$this->id}_action_register input[name="recaptcha_challenge_field"]' ).prop( "value" );
-		var recaptcha_response_field = $( '#{$this->id}_action_register input[name="recaptcha_response_field"]' ).prop( "value" );
-		//send request
-		$.ajax(
+		submitHandler: function(form, validator) 
 		{
-			url: "LoginRecoverRegister",
-			type: "POST",
-			data: {'action_register': 'Register', 'username': username, 'email': email, 'password': password, 'recaptcha_challenge_field': recaptcha_challenge_field, 'recaptcha_response_field': recaptcha_response_field},
-			dataType: "json",
-		} ).done( function( responseJSON )
-		{
-			if( responseJSON.exception !== null )
+			//send request
+			$.ajax(
 			{
-				if( responseJSON.exception.type.localeCompare( "PhenLib\RecaptchaException" ) ) 
+				url: "LoginRecoverRegister",
+				type: "POST",
+				data: registerForm.serialize(),
+				dataType: "json",
+			} ).done( function( responseJSON )
+			{
+				if( responseJSON.exception !== null )
 				{
-					Recaptcha.reload();
-					var recaptchaMsg = $('#recaptcha_instructions_image')
-					recaptchaMsg.html( responseJSON.message );
-					recaptchaMsg.css( 'color','#F00' );	
-				}			
-			}
-			else if( responseJSON.message === true )
-			{ 
-				var registerPopup = $( "#{$this->id}_dialog-register" )
-				registerPopup.bind(
-				{
-					popupafterclose: function() 
+					if( responseJSON.exception.type === "PhenLib\\\\RecaptchaException" ) 
 					{
-						setTimeout( 'triggerDialogFeedback( "Your Registration Was Successful, Please Log In" )',0 );
-					}
-				});
-				registerPopup.popup( "close" );
-			}
-			else
-			{
-				var registerPopup = $( "#{$this->id}_dialog-register" )
-				registerPopup.bind(
-				{
-					popupafterclose: function() 
+						Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}", 
+						"{$this->id}register-recaptcha",
+						{
+							theme: "blackglass",
+							callback: Recaptcha.focus_response_field,
+							extra_challenge_params: "error=" + responseJSON.message
+						});
+					}			
+					else 
 					{
-						setTimeout( function() {  triggerDialogFeedback( responseJSON.message ) },0 );
+						var registerPopup = $( "#{$this->id}dialog-register" )
+						registerPopup.bind(
+						{
+							popupafterclose: function() 
+							{
+								setTimeout( function() { triggerDialogFeedback( responseJSON.message ) }, 0 );
+							}
+						});
+						registerPopup.popup( "close" );
 					}
-				});
-				registerPopup.popup( "close" );
-			}
-		}).fail( function()
-		{
-			var registerPopup = $( "#{$this->id}_dialog-register" );
-			registerPopup.bind(
-			{
-				popupafterclose: function()
-				{
-					setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )',0 );
 				}
+				else if( responseJSON.message === true )
+				{ 
+					var registerPopup = $( "#{$this->id}dialog-register" )
+					registerPopup.bind(
+					{
+						popupafterclose: function() 
+						{
+							setTimeout( 'triggerDialogFeedback( "Your Registration Was Successful, Please Log In" )', 0 );
+						}
+					});
+					registerPopup.popup( "close" );
+				}
+			}).fail( function()
+			{
+				var registerPopup = $( "#{$this->id}dialog-register" );
+				registerPopup.bind(
+				{
+					popupafterclose: function()
+					{
+						setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )', 0 );
+					}
+				});
+				registerPopup.popup( "close" );
 			});
-			registerPopup.popup( "close" );
-		});
-	});
-	
-	var recoverForm = $( "#{$this->id}_action_recover" );
-	recoverForm.on( 'submit', function( e ) 
-	{
-		//prevent form submission
-		e.preventDefault();
-		e.stopPropagation();
-		var email = $( '#{$this->id}_action_recover input[name="email"]' ).prop( "value" );
-		var password = $( '#{$this->id}_action_recover input[name="password"]' ).prop( "value" );
-		var cpassword = $( '#{$this->id}_action_recover input[name="cpassword"]' ).prop( "value" );
-		var recaptcha_challenge_field = $( '#{$this->id}_action_recover input[name="recaptcha_challenge_field"]' ).prop( "value" );
-		var recaptcha_response_field = $( '#{$this->id}_action_recover input[name="recaptcha_response_field"]' ).prop( "value" );
-		if( password !== cpassword ) {
-			triggerDialogFeedback( "Passwords Do Not Match" );
-			return;
 		}
-		//send request
-		$.ajax(
-		{
-			url: "LoginRecoverRegister",
-			type: "POST",
-			data: {'action_recover': 'Recover', 'email': email, 'password': password, 'recaptcha_challenge_field': recaptcha_challenge_field, 'recaptcha_response_field': recaptcha_response_field},
-			dataType: "json",
-		} ).done( function( responseJSON )
-		{ 
-			if( responseJSON.exception !== null )
-			{
-				if( responseJSON.exception.type.localeCompare( "PhenLib\RecaptchaException" ) ) 
-				{
-					Recaptcha.reload();
-					var recaptchaMsg = $('#recaptcha_instructions_image')
-					recaptchaMsg.html( responseJSON.message );
-					recaptchaMsg.css( 'color','#F00' );	
-				}			
-			}
-			else if( responseJSON.message === true  )
-			{
-				var recoverPopup = $( "#{$this->id}_dialog-recover" );
-				recoverPopup.bind(
-				{
-					popupafterclose: function()
-					{
-						setTimeout( 'triggerDialogFeedback( "Password Recovery Email Sent, Please Check Your Email" )',0 );
-					}
-				});
-				recoverPopup.popup( "close" );
-			}
-			else
-			{
-				var recoverPopup = $( "#{$this->id}_dialog-recover" );
-				recoverPopup.bind(
-				{
-					popupafterclose: function()
-					{
-						setTimeout( function() { triggerDialogFeedback( responseJSON.message ) },0 );
-					}
-				});
-				$( "#{$this->id}_dialog-recover" ).popup( "close" );
-			}
-		} ).fail( function()
-		{
-				var recoverPopup = $( "#{$this->id}_dialog-recover" );
-				recoverPopup.bind(
-				{
-					popupafterclose: function()
-					{
-						setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )',0 );
-					}
-				});
-				recoverPopup.popup( "close" );
-		});
 	});
-	var recoverPopup = $( "#{$this->id}_dialog-recover" );
+		
+	var recoverForm = $( "#{$this->id}form-recover" );
+	recoverForm.validate(
+	{	
+		submitHandler: function(form, validator) 
+		{
+			//validate
+			var password = $( '#{$this->id}form-recover_input-password' ).prop( "value" );
+			var cpassword = $( '#{$this->id}form-recover_input-cpassword' ).prop( "value" );
+			if( password !== cpassword ) {
+				triggerDialogFeedback( "Passwords Do Not Match" );
+				return;
+			}
+			//send request
+			$.ajax(
+			{
+				url: "LoginRecoverRegister",
+				type: "POST",
+				data: recoverForm.serialize(),
+				dataType: "json",
+			} ).done( function( responseJSON )
+			{ 
+				if( responseJSON.exception !== null )
+				{
+					if( responseJSON.exception.type === "PhenLib\\\\RecaptchaException" ) 
+					{
+						Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}",
+						"{$this->id}recover-recaptcha",
+						{
+							theme: "blackglass",
+							callback: Recaptcha.focus_response_field,
+							extra_challenge_params: "error=" + responseJSON.message
+						});
+					}			
+					else
+					{
+						var recoverPopup = $( "#{$this->id}dialog-recover" );
+						recoverPopup.bind(
+						{
+							popupafterclose: function()
+							{
+								setTimeout( function() { triggerDialogFeedback( responseJSON.message ) },0 );
+							}
+						});
+						$( "#{$this->id}dialog-recover" ).popup( "close" );
+					}
+				}
+				else if( responseJSON.message === true  )
+				{
+					var recoverPopup = $( "#{$this->id}dialog-recover" );
+					recoverPopup.bind(
+					{
+						popupafterclose: function()
+						{
+							setTimeout( 'triggerDialogFeedback( "Password Recovery Email Sent, Please Check Your Email" )',0 );
+						}
+					});
+					recoverPopup.popup( "close" );
+				}
+			} ).fail( function()
+			{
+					var recoverPopup = $( "#{$this->id}dialog-recover" );
+					recoverPopup.bind(
+					{
+						popupafterclose: function()
+						{
+							setTimeout( 'triggerDialogFeedback( "Error Communicating With Server, Please Try Again" )',0 );
+						}
+					});
+					recoverPopup.popup( "close" );
+			});
+		}
+	});
+	var recoverPopup = $( "#{$this->id}dialog-recover" );
 	recoverPopup.bind(
 	{ 
 		popupafteropen: function( event, ui ) 
 		{ 
 			Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}",
-				"recover_recaptcha",
+				"{$this->id}recover-recaptcha",
 				{
 					theme: "blackglass",
 					callback: Recaptcha.focus_response_field
-		    		}
+				}
 			);
 		} 
 	});
-	var registerPopup = $( "#{$this->id}_dialog-register" );
+	var registerPopup = $( "#{$this->id}dialog-register" );
 	registerPopup.bind(
 	{ 
 		popupafteropen: function( event, ui ) 
 		{ 
 			Recaptcha.create( "{$GLOBALS['recaptchaPublicKey']}",
-				"register_recaptcha",
+				"{$this->id}register-recaptcha",
 				{
 					theme: "blackglass",
 					callback: Recaptcha.focus_response_field
-		    		}
+				}
 			);
 		}
 	});	
@@ -267,49 +266,51 @@ $(document).one('pageinit', function()
 {$recovery_result_popup}
 -->
 </script>
-<form id="{$this->id}_action_login" action="LoginRecoverRegister" method="post">
-	<div>
-		<div class="ui-grid-a">
-			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-username" style="margin: 15px 0px;">Username</label></div>
-			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-username" type="text" name="username" required="required"/></div>
-			<div class="ui-block-a" style="width: 30%;"><label for="{$this->id}_button-login-password" style="margin: 15px 0px;">Password</label></div>
-			<div class="ui-block-b" style="width: 70%;"><input id="{$this->id}_button-login-password" type="password" name="password" required="required" /></div>
-		</div>
+<form id="{$this->id}form-login" action="LoginRecoverRegister" method="post" >
+	<div style="min-width: 325px;">
+		<label for="{$this->id}form-login_input-username" class="ui-hidden-accessible">Username</label>
+		<input id="{$this->id}form-login_input-username" type="text" name="username" placeholder="Username" class="required" />
+		<label for="{$this->id}form-login_input-password" class="ui-hidden-accessible">Password</label>
+		<input id="{$this->id}form-login_input-password" type="password" name="password" placeholder="Password" class="required" />
 		<input type="submit" name="action_login" value="Login" />
-		<a href="#{$this->id}_dialog-recover" data-role="button" data-rel="popup" data-transition="slideup">Forgot?</a>
-		<a href="#{$this->id}_dialog-register" data-role="button" data-rel="popup" data-transition="slideup">New?</a>
+		<a href="#{$this->id}dialog-recover" data-role="button" data-rel="popup" data-transition="slideup">Forgot?</a>
+		<a href="#{$this->id}dialog-register" data-role="button" data-rel="popup" data-transition="slideup">New?</a>
 	</div>
 </form>
 
-<div data-role="popup" id="{$this->id}_dialog-recover" class="ui-content">
+<div data-role="popup" id="{$this->id}dialog-recover" class="ui-content">
 	<h2>Recover</h2>
-	<form id="{$this->id}_action_recover" action="LoginRecoverRegister" method="post">
+	<form id="{$this->id}form-recover" action="LoginRecoverRegister" method="post">
 		<div>
-			Email: <input type="text" name="email" /><br />
-			New Password: <input type="password" name="password" /><br />
-			Confirm New Password: <input type="password" name="cpassword" /><br />
-			<div id="recover_recaptcha" style="height: 129px;"></div>
+			<label for="{$this->id}form-recover_input-email" class="ui-hidden-accessible">Email</label>
+			<input id="{$this->id}form-recover_input-email" type="text" name="email" placeholder="Email" class="required email" />
+			<label for="{$this->id}form-recover_input-password" class="ui-hidden-accessible">New Password</label>
+			<input id="{$this->id}form-recover_input-password" type="password" name="password" placeholder="New Password" class="required" />
+			<label for="{$this->id}form-recover_input-cpassword" class="ui-hidden-accessible">Confirm New Password</label>
+			<input id="{$this->id}form-recover_input-cpassword" type="password" name="cpassword" placeholder="Confirm New Password" class="required" />
+			<div id="{$this->id}recover-recaptcha" style="min-width: 318px; min-height: 129px;"></div>
 			<input type="submit" name="action_recover" value="Recover" />
 		</div>
 	</form>
 </div>
 
-<div data-role="popup" id="{$this->id}_dialog-register" class="ui-content">
+<div data-role="popup" id="{$this->id}dialog-register" class="ui-content">
 	<h2>Register</h2>
-	<form id="{$this->id}_action_register" action="LoginRecoverRegister" method="post">
+	<form id="{$this->id}form-register" action="LoginRecoverRegister" method="post">
 		<div>
-			Username: <input type="text" name="username" /><br />
-			Email: <input type="text" name="email" /><br />
-			Password: <input type="password" name="password" /><br />
-			<div id="register_recaptcha" style="height: 129px;"></div>
+			<label for="{$this->id}form-register_input-username" class="ui-hidden-accessible">Username</label>
+			<input id="{$this->id}form-register_input-username" type="text" name="username" placeholder="Username" class="required" />
+			<label for="{$this->id}form-register_input-email" class="ui-hidden-accessible">Email</label>
+			<input id="{$this->id}form-register_input-email" type="text" name="email" placeholder="Email" class="required email" />
+			<label for="{$this->id}form-register_input-password" class="ui-hidden-accessible">Password</label>
+			<input id="{$this->id}form-register_input-password" type="password" name="password" placeholder="Password" class="required" />
+			<div id="{$this->id}register-recaptcha" style="min-width: 318px; min-height: 129px;"></div>
 			<input type="submit" name="action_register" value="Register" />
 		</div>
 	</form>
 </div>
 
-<div data-role="popup" id="{$this->id}_dialog-feedback" class="ui-content">
-	
-</div>
+<div data-role="popup" id="{$this->id}dialog-feedback" class="ui-content"></div>
 EOHTML;
 		$this->root->appendChild( \PhenLib\Template::HTMLtoDOM( $html ) );
 	}
@@ -386,7 +387,7 @@ EOHTML;
 						throw new \PhenLib\RecaptchaException($error->error);
 					}
 				}	
-
+				
 				if( isset( $_POST['username'] ) && isset( $_POST['password'] ) && isset( $_POST['email'] ) && \PhenLib\User::create( $_POST['username'], $_POST['password'], $_POST['email'] ) )
 				{
 					//json success and exit()
@@ -404,18 +405,12 @@ EOHTML;
 				exit();
 			}
 		}
-		else if( $this->recovery_key != NULL )
-		{
-			\PhenLib\User::recoverFinalize( $this->recovery_key );
-		}
 		else
 			throw new \Exception( "missing or invalid action" );
 	}
 
 	public function getRedirect()
 	{
-		if( $this->recovery_key != NULL )
-			return "../../";
 		//All actions handled by JSON
 		return NULL;
 	}
