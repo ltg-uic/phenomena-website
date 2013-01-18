@@ -65,11 +65,12 @@ abstract class PageController
 
 		//create base URL
 //TODO - need to validate HTTP_HOST, can be spoofed by client
-//TODO - need to correctly handle HTTP/HTTPS/PORT VARIANTS
+//TODO - need to correctly handle $_SERVER['SERVER_PORT'] VARIANTS http !== 80 || https !== 443, put port
 //TODO - check for multiple consecutive slashes in path (should be fixed for end of path)??
+		$protocol = ( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] !== 'off' ) ? "https" : "http";
 		$path = parse_url( $_SERVER['SCRIPT_NAME'], PHP_URL_PATH );
 		$path = substr( $path, 0, strrpos( $path, "/" )+1 );
-		self::$baseURL = "http://{$_SERVER['HTTP_HOST']}{$path}";
+		self::$baseURL = "{$protocol}://{$_SERVER['HTTP_HOST']}{$path}";
 	}
 
 	private static function loadResources()
